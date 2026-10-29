@@ -25,7 +25,7 @@ Only these, nothing else (`mini-apps/catalog.json` untouched):
 
 ### Privacy in one breath
 
-Members are keyed by an HMAC of `X-Village-Subject`; the subject is never stored or logged. Arguments never carry identity (any `residentId`, `subject`, `userId`, `telegramId` or `username` key at any depth is `invalid_arguments`). A handle is shown only to the people a member gives to or receives from, only after everyone said yes. The board is anonymous. `leave` deletes at once; all data is deleted on 30 Nov 2026. No third party receives anything.
+Members are keyed by an HMAC of `X-Village-Subject`; the subject is never stored or logged. Arguments never carry identity (any `residentId`, `subject`, `userId`, `telegramId` or `username` key at any depth is `invalid_arguments`). A handle is shown only to the people a member gives to or receives from, only after everyone said yes. The board is anonymous. `leave` deletes at once; all data is deleted on 30 Nov 2026. The one third party is Telegram: when someone in a loop uses the Favor Loop Telegram bot, the loop and, once everyone said yes, the handles shared with them reach that member through Telegram. Nothing else leaves the server.
 
 ### Local checks (run on this branch)
 

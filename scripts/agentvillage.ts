@@ -49,7 +49,7 @@ const manifest = {
   permissions: [
     { kind: "read", label: "Public Favor Loop info", description: "How Favor Loop works, the favor menu and an anonymous board of loops and counts. No names or private data." },
     { kind: "read", label: "Your own loops", description: "Your chosen favors and the loops proposed to you. Agent Village tells Favor Loop which resident you are by a private, stable reference, never your Telegram id or username." },
-    { kind: "action", label: "Join, answer, confirm and leave, when you ask", description: "Sends your chosen favor ids, an optional Telegram handle that is shown only to people in a loop you accepted, your yes or no to a proposed loop, your confirmation that you received a favor, or a request to delete everything Favor Loop holds about you. No data goes to any third party." },
+    { kind: "action", label: "Join, answer, confirm and leave, when you ask", description: "Sends your chosen favor ids, an optional Telegram handle that is shown only to people in a loop you accepted, your yes or no to a proposed loop, your confirmation that you received a favor, or a request to delete everything Favor Loop holds about you. If someone in your loop uses the Favor Loop Telegram bot, the loop (favors, time, place) and, once everyone said yes, your handle reach them through Telegram; nothing goes to any other third party." },
   ],
   service: { kind: "mcp", baseUrl: `${host}/mcp`, auth: { mode: "app-token", secretRef: "MINI_APP_FAVORLOOP_KEY" } },
   operations: OPERATIONS.map(op => ({
