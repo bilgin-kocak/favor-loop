@@ -25,7 +25,7 @@ src/bot.ts         Telegram bot (grammY)
 src/sim.ts         the simulated village: 150 synthetic members, separate in-memory database
 src/web.ts         routes; public/*.html are the pages
 agentvillage/      the files for the Edge-City/agentvillage pull request (generated, except SKILL.md)
-scripts/           agentvillage.ts (generate), pr-checks.sh (local checks), village-shim.ts and demo-accounts.ts (demo)
+scripts/           agentvillage.ts (generate), pr-checks.sh (local checks), village-shim.ts and demo-accounts.ts (demo), live-check.ts (end-to-end check of a running endpoint)
 demo/              a Claude Code project for the agent demo
 video/             the 81-second video: Remotion scenes, ElevenLabs voice and sound effects (video/README.md)
 ```
@@ -146,6 +146,16 @@ Then, labelled "test accounts" on screen:
 5. Show `https://favorloop.fly.dev/board?view=demo` (labelled TEST ACCOUNTS), then the real board and `/board?view=sim` (labelled SIMULATED).
 
 `bun run demo leave` clears the test accounts.
+
+## Check a running endpoint
+
+After a deploy, `scripts/live-check.ts` runs the whole contract against the live server: the protocol, `tools/list` against the manifest inputs, public reads, auth refusals, input validation, a full three-way loop between three throwaway test accounts (who leave at the end), each operation's time and size budget, and the answers' fields against the fixtures. With the same two variables as the demo:
+
+```bash
+bun run live-check
+```
+
+It prints `ALL PASSED`, or each failing check, and exits 1 on any failure.
 
 ## Privacy and safety
 
