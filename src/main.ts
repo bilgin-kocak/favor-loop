@@ -52,6 +52,11 @@ function cached<T>(fn: () => T, ms: number): () => T {
   };
 }
 
+// Test accounts for demos live in their own in-memory village, reached only with FAVORLOOP_DEMO_KEY.
+const demoCtx: Ctx | null = config.demoKey
+  ? { db: openDb(":memory:"), now: () => Date.now(), newId: () => crypto.randomUUID(), emit: () => {}, simulated: false, closesAt: config.deleteAllAt }
+  : null;
+
 const sim = new SimVillage();
 setInterval(() => sim.step(), 3_000);
 
@@ -84,10 +89,12 @@ const server = Bun.serve({
       memberLimiter: new RateLimiter(60, 60_000),
       ipLimiter: new RateLimiter(600, 60_000),
       log,
+      ...(demoCtx ? { demo: { key: config.demoKey, ctx: demoCtx } } : {}),
     },
     publicDir: new URL("../public", import.meta.url).pathname,
     realGraph: cached(() => core.boardGraph(ctx, identity.anon), 2_000),
     simGraph: cached(() => core.boardGraph(sim.ctx, identity.anon), 1_000),
+    demoGraph: demoCtx ? cached(() => core.boardGraph(demoCtx, identity.anon), 1_000) : null,
     restartSim: () => sim.restart(),
     botUrl: () => botUrl,
   }),

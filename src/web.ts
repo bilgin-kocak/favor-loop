@@ -11,6 +11,8 @@ export type WebDeps = {
   publicDir: string;
   realGraph(): unknown;
   simGraph(): unknown;
+  /** Test accounts' village, when FAVORLOOP_DEMO_KEY is set. */
+  demoGraph: (() => unknown) | null;
   restartSim(): boolean;
   botUrl(): string | null;
 };
@@ -71,8 +73,13 @@ export function makeFetch(deps: WebDeps) {
       case "/how":
       case "/sim":
         return get ? page(url.pathname.slice(1) as "board" | "how" | "sim") : text("Method not allowed", 405);
-      case "/api/board":
-        return get ? json(url.searchParams.get("view") === "sim" ? deps.simGraph() : deps.realGraph()) : text("Method not allowed", 405);
+      case "/api/board": {
+        if (!get) return text("Method not allowed", 405);
+        const view = url.searchParams.get("view");
+        if (view === "sim") return json(deps.simGraph());
+        if (view === "demo") return deps.demoGraph ? json({ ...(deps.demoGraph() as object), demo: true }) : text("Not found", 404);
+        return json(deps.realGraph());
+      }
       case "/api/sim/restart":
         if (req.method !== "POST") return text("Method not allowed", 405);
         return deps.restartSim() ? json({ restarted: true }) : json({ restarted: false, detail: "The simulation restarted moments ago." }, 429);

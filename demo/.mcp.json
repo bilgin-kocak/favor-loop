@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "village": {
+      "command": "bun",
+      "args": ["../scripts/village-shim.ts"],
+      "env": {
+        "FAVORLOOP_MCP_URL": "${FAVORLOOP_MCP_URL:-https://favorloop.fly.dev/mcp}",
+        "FAVORLOOP_TEST_KEY": "${FAVORLOOP_TEST_KEY}",
+        "VILLAGE_SUBJECT": "${VILLAGE_SUBJECT:-demo-resident-1}"
+      }
+    }
+  }
+}

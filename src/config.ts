@@ -7,6 +7,8 @@ export const config = {
   publicBaseUrl: env("PUBLIC_BASE_URL", "http://localhost:8080").replace(/\/+$/, ""),
   /** The app token Agent Village sends as a Bearer; never in the repo. */
   appKey: env("MINI_APP_FAVORLOOP_KEY"),
+  /** Optional, for demos: private calls with this key reach an isolated in-memory village of test accounts. */
+  demoKey: env("FAVORLOOP_DEMO_KEY"),
   telegramToken: env("TELEGRAM_BOT_TOKEN"),
   adminTgIds: new Set(env("ADMIN_TG_IDS").split(",").map(s => s.trim()).filter(Boolean)),
   dbPath: env("DB_PATH", "./data/favorloop.db"),
@@ -21,5 +23,6 @@ export function configProblems(): string[] {
   if (!config.telegramToken) problems.push("TELEGRAM_BOT_TOKEN is not set: the Telegram bot is off");
   if (!config.publicBaseUrl.startsWith("https://")) problems.push("PUBLIC_BASE_URL is not https: fine locally, wrong in production");
   if (Number.isNaN(config.deleteAllAt)) problems.push("DELETE_ALL_AT is not a date");
+  if (config.demoKey && config.demoKey === config.appKey) problems.push("FAVORLOOP_DEMO_KEY equals the app key: demo calls would reach the test village only");
   return problems;
 }

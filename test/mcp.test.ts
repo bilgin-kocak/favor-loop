@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import * as core from "../src/core";
 import { makeIdentity } from "../src/identity";
 import { handleMcp, MAX_RESPONSE_BYTES, PROTOCOL_VERSION, type McpDeps } from "../src/mcp";
 import { RateLimiter } from "../src/ratelimit";
@@ -162,6 +163,18 @@ describe("tools", () => {
     const left = await call(deps, "leave", {}, as("r1"));
     expect(left.structuredContent.deleted).toBe(true);
     expect(JSON.stringify(ctx.db.query("SELECT * FROM members").all())).not.toContain("resident_one");
+  });
+
+  test("the demo key reaches an isolated village of test accounts, never the real one", async () => {
+    const demo = testCtx();
+    const { deps, ctx } = setup({ demo: { key: "demo-key-not-a-secret", ctx: demo.ctx } });
+    const asTest = (subject: string) => ({ authorization: "Bearer demo-key-not-a-secret", "x-village-subject": subject });
+    const joined = await call(deps, "join", { offers: ["code_review"], wants: ["portrait_photo"] }, asTest("demo-resident-1"));
+    expect(joined.structuredContent.member.offers).toEqual(["code_review"]);
+    expect(core.counts(demo.ctx).members).toBe(1);
+    expect(core.counts(ctx).members).toBe(0);
+    expect((await call(deps, "board", {})).structuredContent.counts.members).toBe(0); // the public board is real only
+    expect((await call(deps, "my_loops", {}, as("demo-resident-1"))).structuredContent.joined).toBe(false);
   });
 
   test("rate limits answer rate_limited", async () => {

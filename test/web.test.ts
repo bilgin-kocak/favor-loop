@@ -12,6 +12,7 @@ function app() {
     publicDir: new URL("../public", import.meta.url).pathname,
     realGraph: () => core.boardGraph(t.ctx, identity.anon),
     simGraph: () => ({ simulated: true, counts: core.counts(t.ctx), pool: [], loops: [] }),
+    demoGraph: null,
     restartSim: () => true,
     botUrl: () => "https://t.me/favorloop_test_bot",
   });

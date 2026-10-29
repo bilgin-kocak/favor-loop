@@ -26,20 +26,23 @@ export type McpDeps = {
   memberLimiter?: RateLimiter;
   ipLimiter?: RateLimiter;
   log?: (line: Record<string, unknown>) => void;
+  /** Test accounts: private calls made with this key go to their own village, never the real one. */
+  demo?: { key: string; ctx: Ctx };
 };
 
 type ToolResult = Record<string, unknown>;
 type Args = Record<string, any>;
 
-const TOOLS: Record<string, (deps: McpDeps, args: Args, member: string) => { text: string } & Record<string, unknown>> = {
-  how_it_works: deps => howItWorks(deps.publicBaseUrl),
+type Tool = (ctx: Ctx, args: Args, member: string, base: string) => { text: string } & Record<string, unknown>;
+const TOOLS: Record<string, Tool> = {
+  how_it_works: (_ctx, _args, _member, base) => howItWorks(base),
   menu: () => menuPayload(),
-  board: (deps, args) => core.board(deps.ctx, args.limit ?? 10),
-  join: (deps, args, member) => core.join(deps.ctx, member, "av", args),
-  my_loops: (deps, _args, member) => core.myLoops(deps.ctx, member),
-  answer: (deps, args, member) => core.answer(deps.ctx, member, args.loopId, args.decision),
-  confirm: (deps, args, member) => core.confirm(deps.ctx, member, args.loopId, args.received),
-  leave: (deps, _args, member) => core.leave(deps.ctx, member),
+  board: (ctx, args) => core.board(ctx, args.limit ?? 10),
+  join: (ctx, args, member) => core.join(ctx, member, "av", args),
+  my_loops: (ctx, _args, member) => core.myLoops(ctx, member),
+  answer: (ctx, args, member) => core.answer(ctx, member, args.loopId, args.decision),
+  confirm: (ctx, args, member) => core.confirm(ctx, member, args.loopId, args.received),
+  leave: (ctx, _args, member) => core.leave(ctx, member),
 };
 
 export function toolSuccess(data: { text: string } & Record<string, unknown>, base: string): ToolResult {
@@ -82,8 +85,11 @@ function callTool(params: unknown, headers: Headers, clientIp: string, deps: Mcp
   if (problem) return fail("invalid_arguments", problem);
 
   let member = "";
+  let village = deps.ctx;
   if (!op.public) {
-    if (!bearerMatches(headers.get("authorization"), deps.appKey)) return fail("not_authorized", "This call needs Agent Village's key for Favor Loop.");
+    const authorization = headers.get("authorization");
+    if (deps.demo && bearerMatches(authorization, deps.demo.key)) village = deps.demo.ctx;
+    else if (!bearerMatches(authorization, deps.appKey)) return fail("not_authorized", "This call needs Agent Village's key for Favor Loop.");
     const subject = usableSubject(headers.get("x-village-subject"));
     if (!subject) return fail("not_authorized", "This call needs Agent Village's private reference for the resident.");
     member = deps.identity.forSubject(subject);
@@ -92,7 +98,7 @@ function callTool(params: unknown, headers: Headers, clientIp: string, deps: Mcp
   if (limiter && !limiter.allow(op.public ? clientIp : member)) return fail("rate_limited", "Too many calls in a short time; try again in a minute.");
 
   try {
-    return { result: toolSuccess(TOOLS[op.tool](deps, args as Args, member), deps.publicBaseUrl), tool: op.tool, code: "ok" };
+    return { result: toolSuccess(TOOLS[op.tool](village, args as Args, member, deps.publicBaseUrl), deps.publicBaseUrl), tool: op.tool, code: "ok" };
   } catch (e) {
     if (e instanceof AppError) return fail(e.code, e.detail);
     deps.log?.({ event: "tool_crash", tool: op.tool, error: e instanceof Error ? e.name : "unknown" });

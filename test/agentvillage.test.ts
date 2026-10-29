@@ -25,5 +25,6 @@ describe("the agentvillage pull request files", () => {
     expect(manifest.skills[0].sha256).toBe(createHash("sha256").update(skill).digest("hex"));
     expect([...skill].every(byte => byte < 128)).toBe(true);
     expect(manifest.owner).toEqual({ github: "bilgin-kocak" });
+    expect(readFileSync(new URL("../demo/.claude/skills/favorloop/SKILL.md", import.meta.url))).toEqual(skill);
   });
 });

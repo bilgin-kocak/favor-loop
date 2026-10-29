@@ -75,11 +75,17 @@
 </div>
 <script>
 (() => {
-  const sim = new URLSearchParams(location.search).get("view") === "sim";
-  document.body.classList.toggle("sim", sim);
-  document.getElementById(sim ? "simulated" : "real").classList.add("on");
+  const view = ["sim", "demo"].includes(new URLSearchParams(location.search).get("view")) ? new URLSearchParams(location.search).get("view") : "real";
+  const sim = view === "sim";
+  // Test accounts (the agent demo) get the same loud treatment as the simulation: never mistaken for residents.
+  document.body.classList.toggle("sim", view !== "real");
+  if (view === "demo") {
+    document.querySelector(".watermark").textContent = "TEST ACCOUNTS";
+    document.querySelector(".banner").textContent = "TEST ACCOUNTS for the agent demo, in their own village: not real residents, and none of it counts as real.";
+  }
+  if (view !== "demo") document.getElementById(sim ? "simulated" : "real").classList.add("on");
   if (sim) document.getElementById("simulated").classList.add("sim");
-  document.getElementById("l-members").textContent = sim ? "simulated members" : "residents joined";
+  document.getElementById("l-members").textContent = sim ? "simulated members" : view === "demo" ? "test accounts" : "residents joined";
   const EMOJI = { code_review: "💻", portrait_photo: "📸", stretch_session: "🧘", pitch_feedback: "🎤", cv_review: "📄", design_feedback: "🎨",
     ai_tool_setup: "🤖", wallet_setup: "👛", language_basics: "🗣️", music_lesson: "🎵", proofreading: "✍️", goa_tips: "🌴" };
   const svg = document.getElementById("board");
@@ -182,7 +188,7 @@
     defs();
     if (!loops.length) {
       const t = el("text", { x: width / 2, y: 70, "text-anchor": "middle", class: "empty" }, svg);
-      t.textContent = sim ? "The simulated village is starting..." : "No loops yet: the first one appears as soon as people join.";
+      t.textContent = sim ? "The simulated village is starting..." : view === "demo" ? "No test loops yet." : "No loops yet: the first one appears as soon as people join.";
     }
     loops.forEach((loop, i) => {
       const cx = (i % cols) * cell + cell / 2 + (width - cols * cell) / 2;
@@ -200,7 +206,7 @@
 
   async function poll() {
     try {
-      const res = await fetch(`/api/board?view=${sim ? "sim" : "real"}`, { cache: "no-store" });
+      const res = await fetch(`/api/board?view=${view}`, { cache: "no-store" });
       if (res.ok) render(await res.json());
     } catch { /* keep the last picture */ }
   }
