@@ -15,7 +15,7 @@ const BOT_INFO = {
 } as UserFromGetMe;
 
 /** A bot wired to an in-memory village, with every Telegram API call recorded instead of sent. */
-function harness() {
+function harness(failing: Set<string> = new Set()) {
   const t = testCtx();
   const calls: Call[] = [];
   const identity = makeIdentity("bot-test");
@@ -27,6 +27,7 @@ function harness() {
   t.ctx.emit = e => { record(e); onLoopEvent(e); };
   bot.api.config.use(async (_prev, method, payload: any) => {
     calls.push({ method, payload });
+    if (failing.has(method)) throw new Error(`${method} refused`);
     const message = { message_id: calls.length, date: 0, chat: { id: payload?.chat_id ?? 0, type: "private" }, text: "" };
     return { ok: true, result: method === "sendMessage" ? message : true } as any;
   });
@@ -134,6 +135,33 @@ describe("telegram bot", () => {
     expect(screen.payload.text).toContain("Suggested by your agent");
     const marked = (screen.payload.reply_markup.inline_keyboard as any[]).flat().filter((b: any) => b.text.startsWith("✅")).map((b: any) => b.callback_data);
     expect(marked).toEqual([`o:${FAVOR_IDS.indexOf("code_review")}`, `o:${FAVOR_IDS.indexOf("proofreading")}`]);
+  });
+
+  test("a report asks first, and sends the username only when the resident chooses to", async () => {
+    const h = harness();
+    const a = h.user(21, "private_alice");
+    await h.say(a, "/report my partner never showed up");
+    expect(h.sentTo(999)).toHaveLength(0); // nothing sent yet
+    const ask = h.calls.filter(c => c.method === "sendMessage" && c.payload.chat_id === 21).at(-1)!;
+    expect(h.buttons(ask)).toEqual(["rep:with", "rep:anon", "rep:no"]);
+    await h.tap(a, "rep:anon");
+    expect(h.sentTo(999).at(-1)).toContain("my partner never showed up");
+    expect(h.sentTo(999).at(-1)).not.toContain("private_alice");
+    await h.say(a, "/report second time");
+    await h.tap(a, "rep:with");
+    expect(h.sentTo(999).at(-1)).toContain("@private_alice");
+  });
+
+  test("Telegram refusing the callback answer never undoes a join or skips a deletion", async () => {
+    const h = harness(new Set(["answerCallbackQuery"]));
+    const a = h.user(31, "alice_tg");
+    await h.joinWithButtons(a, ["code_review"], ["portrait_photo"]);
+    const member = h.identity.forTelegram(31);
+    expect(core.isMember(h.ctx, member)).toBe(true);
+    expect(h.ctx.db.query("SELECT COUNT(*) AS n FROM tg_routes WHERE member_id = ?").get(member)).toEqual({ n: 1 });
+    await h.say(a, "/leave");
+    await h.tap(a, "leave:yes");
+    expect(core.isMember(h.ctx, member)).toBe(false);
   });
 
   test("only organisers can see /stats; a no is never named", async () => {

@@ -102,8 +102,9 @@ In detail:
 - **`answer`** takes a `loopId` (lower-case UUID v4) of a loop the member sits
   in and `yes` or `no`. Every yes: `accepted`, and only then are handles
   revealed. Any no: `dissolved`; the others are told only that it did not go
-  ahead, and that exact group is never proposed again. A repeated answer
-  changes nothing.
+  ahead, and that exact group is never proposed again (a no that arrives
+  after the 6 hours still blocks the group). A repeated answer changes
+  nothing; any other answer after the 6 hours is `expired`.
 - **`confirm`** takes a `loopId` and `received`. Only the receiver of a
   favor can confirm it (a member who only gives in that loop gets
   `not_authorized`), only once the loop is accepted. `received: false` takes
@@ -115,7 +116,10 @@ In detail:
 Matching runs after every `join`, `answer` and `leave`, and every 10 minutes:
 greedy and vertex-disjoint, three-way loops first, then gift chains (giver to
 X to Y, or giver to X), then swaps, over members who are not already in a
-proposed or accepted loop. A proposal expires after 6 hours.
+proposed loop or in a loop accepted less than a day ago. A proposal expires
+after 6 hours. An accepted loop never expires: it can complete whenever its
+receivers confirm, but after a day it stops keeping its members out of new
+loops (never with the same group).
 
 ## What Favor Loop stores
 

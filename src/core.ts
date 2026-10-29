@@ -19,7 +19,7 @@ export class AppError extends Error {
 export type Source = "av" | "tg" | "sim";
 export type Status = "proposed" | "accepted" | "dissolved" | "expired" | "completed";
 export type LoopEvent = {
-  type: "proposed" | "accepted" | "dissolved" | "expired" | "completed" | "confirmed";
+  type: "proposed" | "accepted" | "dissolved" | "expired" | "completed" | "confirmed" | "remind";
   loopId: string;
   /** Members to tell about it. */
   notify: string[];
@@ -37,6 +37,10 @@ export interface Ctx {
 }
 
 export const PROPOSAL_TTL_MS = 6 * 60 * 60 * 1000;
+/** Receivers who have not confirmed get one reminder this long after everyone said yes. */
+export const REMIND_AFTER_MS = 12 * 60 * 60 * 1000;
+/** After this, an accepted loop no longer keeps its members out of new loops (it can still complete). */
+export const STALE_ACCEPTED_MS = 24 * 60 * 60 * 1000;
 const RECENT_CLOSED_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_DEADLINE = Date.parse("2026-10-30T13:00:00+05:30");
 export const MEETING_PLACE = "The Circle, or online";
@@ -47,7 +51,7 @@ type MemberRow = {
 };
 type LoopRow = {
   id: string; shape: Shape; status: Status; time_window: string; created_at: number; expires_at: number;
-  accepted_at: number | null; closed_at: number | null;
+  accepted_at: number | null; closed_at: number | null; reminded_at: number | null;
 };
 type SeatRow = { loop_id: string; member_id: string; position: number; answer: "yes" | "no" | null };
 type EdgeRow = {
@@ -207,18 +211,30 @@ function insertLoop(ctx: Ctx, proposal: Proposal, rows: Map<string, MemberRow>):
   return id;
 }
 
+/** Members a new loop must not include: in a proposal, or in a loop accepted less than a day ago. */
+function busyMembers(ctx: Ctx): Set<string> {
+  return new Set(ctx.db.query<{ member_id: string }, [number]>(
+    `SELECT s.member_id FROM seats s JOIN loops l ON l.id = s.loop_id
+     WHERE l.status = 'proposed' OR (l.status = 'accepted' AND l.accepted_at > ?)`,
+  ).all(ctx.now() - STALE_ACCEPTED_MS).map(r => r.member_id));
+}
+
 /** Proposes every loop it can find among free, unpaused members. Returns the new loops. */
 export function runMatcher(ctx: Ctx): { loopId: string; members: string[] }[] {
   const created: { loopId: string; members: string[] }[] = [];
   ctx.db.transaction(() => {
-    const busy = new Set(ctx.db.query<{ member_id: string }, []>(
-      "SELECT s.member_id FROM seats s JOIN loops l ON l.id = s.loop_id WHERE l.status IN ('proposed', 'accepted')",
-    ).all().map(r => r.member_id));
+    const busy = busyMembers(ctx);
     const rows = ctx.db.query<MemberRow, []>("SELECT * FROM members WHERE paused = 0 ORDER BY joined_at, id").all();
     const byId = new Map(rows.map(r => [r.id, r]));
     const candidates: Candidate[] = rows.filter(r => !busy.has(r.id))
       .map(r => ({ id: r.id, offers: list(r.offers), wants: list(r.wants), giftOnly: r.gift_only === 1 }));
     const blocked = new Set(ctx.db.query<{ group_key: string }, []>("SELECT group_key FROM blocked_groups").all().map(r => r.group_key));
+    // A group whose loop is still accepted is never proposed again beside it, stale or not.
+    const accepted = new Map<string, string[]>();
+    for (const r of ctx.db.query<{ loop_id: string; member_id: string }, []>(
+      "SELECT s.loop_id, s.member_id FROM seats s JOIN loops l ON l.id = s.loop_id WHERE l.status = 'accepted'",
+    ).all()) accepted.set(r.loop_id, [...(accepted.get(r.loop_id) ?? []), r.member_id]);
+    for (const members of accepted.values()) blocked.add(groupKey(members));
     for (const proposal of findMatches(candidates, blocked)) {
       created.push({ loopId: insertLoop(ctx, proposal, byId), members: proposal.members });
     }
@@ -227,22 +243,41 @@ export function runMatcher(ctx: Ctx): { loopId: string; members: string[] }[] {
   return created;
 }
 
-/** Marks overdue proposals expired; whoever did not answer is paused until they act again. */
+/**
+ * The minute timer: overdue proposals expire (whoever did not answer is paused until they act again), and
+ * receivers in loops accepted 12 hours ago who have not confirmed get one reminder.
+ */
 export function expireDue(ctx: Ctx): number {
-  const due = ctx.db.query<LoopRow, [number]>("SELECT * FROM loops WHERE status = 'proposed' AND expires_at <= ?").all(ctx.now());
+  const now = ctx.now();
+  const due = ctx.db.query<LoopRow, [number]>("SELECT * FROM loops WHERE status = 'proposed' AND expires_at <= ?").all(now);
   for (const loop of due) expireLoop(ctx, loop.id);
   if (due.length > 0) runMatcher(ctx);
+  const remind = ctx.db.query<LoopRow, [number]>(
+    "SELECT * FROM loops WHERE status = 'accepted' AND reminded_at IS NULL AND accepted_at <= ?",
+  ).all(now - REMIND_AFTER_MS);
+  for (const loop of remind) {
+    ctx.db.query("UPDATE loops SET reminded_at = ? WHERE id = ?").run(now, loop.id);
+    const waiting = ctx.db.query<{ receiver: string }, [string]>("SELECT receiver FROM edges WHERE loop_id = ? AND confirmed = 0 ORDER BY position")
+      .all(loop.id).map(e => e.receiver);
+    if (waiting.length > 0) ctx.emit({ type: "remind", loopId: loop.id, notify: waiting });
+  }
   return due.length;
 }
 
-function expireLoop(ctx: Ctx, loopId: string) {
+/** `caller`, answering just now, is neither paused nor told: their own answer says it. */
+function expireLoop(ctx: Ctx, loopId: string, caller?: string) {
   const seats = ctx.db.query<SeatRow, [string]>("SELECT * FROM seats WHERE loop_id = ? ORDER BY position").all(loopId);
   ctx.db.transaction(() => {
     ctx.db.query("UPDATE loops SET status = 'expired', closed_at = ? WHERE id = ? AND status = 'proposed'").run(ctx.now(), loopId);
-    for (const s of seats) if (s.answer === null) ctx.db.query("UPDATE members SET paused = 1 WHERE id = ?").run(s.member_id);
+    for (const s of seats) {
+      if (s.answer === null && s.member_id !== caller) ctx.db.query("UPDATE members SET paused = 1 WHERE id = ?").run(s.member_id);
+    }
   })();
-  ctx.emit({ type: "expired", loopId, notify: seats.map(s => s.member_id) });
+  ctx.emit({ type: "expired", loopId, notify: seats.map(s => s.member_id).filter(id => id !== caller) });
 }
+
+const blockGroup = (ctx: Ctx, members: string[]) =>
+  ctx.db.query("INSERT OR IGNORE INTO blocked_groups (group_key, created_at) VALUES (?, ?)").run(groupKey(members), ctx.now());
 
 // ---------------------------------------------------------------------------------------------- writes
 
@@ -325,14 +360,19 @@ export function myLoops(ctx: Ctx, memberId: string) {
 
 export function answer(ctx: Ctx, memberId: string, loopId: string, decision: "yes" | "no") {
   requireMember(ctx, memberId);
-  let loop = loopOf(ctx, memberId, loopId);
-  if (loop.status === "proposed" && loop.expires_at <= ctx.now()) {
-    expireLoop(ctx, loop.id);
-    resume(ctx, memberId); // they are here now, so they stay in the pool
+  const loop = loopOf(ctx, memberId, loopId);
+  const overdue = loop.status === "proposed" && loop.expires_at <= ctx.now();
+  if (overdue || loop.status === "expired") {
+    // A late answer: the loop is over either way, but a late no still keeps this group from coming back,
+    // and whoever answers is plainly here, so they stay in the pool.
+    if (overdue) expireLoop(ctx, loop.id, memberId);
+    if (decision === "no") blockGroup(ctx, loop.seats.map(s => s.member_id));
+    ctx.db.query("UPDATE members SET paused = 0 WHERE id = ?").run(memberId);
     runMatcher(ctx);
-    loop = loadLoop(ctx, loopId)!;
+    throw new AppError("expired", decision === "no"
+      ? "That proposal had already expired, so it will not go ahead, and it will not be proposed again."
+      : "That proposal expired before everyone answered.");
   }
-  if (loop.status === "expired") throw new AppError("expired", "That proposal expired before everyone answered.");
   const seat = loop.seats.find(s => s.member_id === memberId)!;
   if (loop.status !== "proposed") {
     if (seat.answer === decision && loop.status === "accepted") return answered(ctx, loopId, memberId); // a repeated yes
@@ -345,8 +385,7 @@ export function answer(ctx: Ctx, memberId: string, loopId: string, decision: "ye
     ctx.db.transaction(() => {
       ctx.db.query("UPDATE seats SET answer = 'no' WHERE loop_id = ? AND member_id = ?").run(loopId, memberId);
       ctx.db.query("UPDATE loops SET status = 'dissolved', closed_at = ? WHERE id = ?").run(now, loopId);
-      ctx.db.query("INSERT OR IGNORE INTO blocked_groups (group_key, created_at) VALUES (?, ?)")
-        .run(groupKey(loop.seats.map(s => s.member_id)), now);
+      blockGroup(ctx, loop.seats.map(s => s.member_id));
     })();
     ctx.emit({ type: "dissolved", loopId, notify: loop.seats.map(s => s.member_id).filter(id => id !== memberId) });
     runMatcher(ctx);
@@ -499,9 +538,7 @@ export function boardGraph(ctx: Ctx, anon: (value: string) => string) {
   const loops = ctx.db.query<LoopRow, []>(
     "SELECT * FROM loops WHERE status IN ('proposed', 'accepted', 'completed') ORDER BY created_at DESC LIMIT 60",
   ).all();
-  const busy = new Set(ctx.db.query<{ member_id: string }, []>(
-    "SELECT s.member_id FROM seats s JOIN loops l ON l.id = s.loop_id WHERE l.status IN ('proposed', 'accepted')",
-  ).all().map(r => r.member_id));
+  const busy = busyMembers(ctx);
   const pool = ctx.db.query<{ id: string }, []>("SELECT id FROM members ORDER BY joined_at").all()
     .filter(m => !busy.has(m.id)).map(m => anon(`pool:${m.id}`));
   return {

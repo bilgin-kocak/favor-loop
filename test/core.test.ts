@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import * as core from "../src/core";
-import { AppError, PROPOSAL_TTL_MS } from "../src/core";
+import { AppError, PROPOSAL_TTL_MS, REMIND_AFTER_MS, STALE_ACCEPTED_MS } from "../src/core";
 import { makeIdentity } from "../src/identity";
 import { testCtx } from "./helpers";
 
@@ -145,6 +145,58 @@ describe("loop lifecycle", () => {
     expect(codeOf(() => core.answer(ctx, A, loopId, "yes"))).toBe("expired");
     expect(core.myLoops(ctx, A).member?.paused).toBe(false);
     expect(core.myLoops(ctx, B).member?.paused).toBe(true);
+  });
+
+  test("a late no, before the timer runs, still blocks the group and does not pause or notify the caller", () => {
+    const t = testCtx();
+    core.join(t.ctx, A, "tg", { offers: ["code_review"], wants: ["portrait_photo"] });
+    core.join(t.ctx, B, "tg", { offers: ["portrait_photo"], wants: ["code_review"] });
+    const loopId = core.myLoops(t.ctx, A).loops[0].loopId;
+    core.answer(t.ctx, A, loopId, "yes");
+    t.advance(PROPOSAL_TTL_MS + 1);
+    expect(codeOf(() => core.answer(t.ctx, B, loopId, "no"))).toBe("expired");
+    expect(t.events.find(e => e.type === "expired")?.notify).toEqual([A]);
+    expect(core.myLoops(t.ctx, B).member?.paused).toBe(false);
+    expect(core.myLoops(t.ctx, B).loops.filter(l => l.status === "proposed")).toHaveLength(0); // not re-proposed
+    expect(core.runMatcher(t.ctx)).toEqual([]);
+  });
+
+  test("a late no after the timer ran also blocks the group, even once the caller resumes", () => {
+    const t = testCtx();
+    core.join(t.ctx, A, "tg", { offers: ["code_review"], wants: ["portrait_photo"] });
+    core.join(t.ctx, B, "tg", { offers: ["portrait_photo"], wants: ["code_review"] });
+    const loopId = core.myLoops(t.ctx, A).loops[0].loopId;
+    t.advance(PROPOSAL_TTL_MS + 1);
+    core.expireDue(t.ctx);
+    expect(codeOf(() => core.answer(t.ctx, B, loopId, "no"))).toBe("expired");
+    core.resume(t.ctx, A);
+    expect(core.runMatcher(t.ctx)).toEqual([]);
+    expect(core.myLoops(t.ctx, B).member?.paused).toBe(false);
+  });
+
+  test("a loop accepted a day ago no longer keeps its members out of new loops, and can still complete", () => {
+    const t = testCtx();
+    core.join(t.ctx, A, "tg", { offers: ["code_review"], wants: ["portrait_photo"] });
+    core.join(t.ctx, B, "tg", { offers: ["portrait_photo"], wants: ["code_review"] });
+    const first = core.myLoops(t.ctx, A).loops[0].loopId;
+    core.answer(t.ctx, A, first, "yes");
+    core.answer(t.ctx, B, first, "yes");
+    core.join(t.ctx, D, "tg", { offers: ["portrait_photo"], wants: ["code_review"] });
+    expect(core.myLoops(t.ctx, D).loops).toHaveLength(0); // A is busy
+    t.advance(STALE_ACCEPTED_MS + 1);
+    expect(core.runMatcher(t.ctx).map(c => c.members.sort())).toEqual([[A, D].sort()]);
+    core.confirm(t.ctx, A, first, true);
+    expect(core.confirm(t.ctx, B, first, true).loop.status).toBe("completed");
+  });
+
+  test("receivers who have not confirmed get one reminder 12 hours after acceptance", () => {
+    const { ctx, events, advance, loopId } = village();
+    for (const id of [A, B, C]) core.answer(ctx, id, loopId, "yes");
+    core.confirm(ctx, A, loopId, true);
+    advance(REMIND_AFTER_MS + 1);
+    core.expireDue(ctx);
+    core.expireDue(ctx);
+    expect(events.filter(e => e.type === "remind")).toEqual([{ type: "remind", loopId, notify: [C, B] }]);
   });
 
   test("a loop id that does not include you is not found", () => {

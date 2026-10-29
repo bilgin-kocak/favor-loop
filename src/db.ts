@@ -25,7 +25,8 @@ CREATE TABLE IF NOT EXISTS loops (
   created_at INTEGER NOT NULL,
   expires_at INTEGER NOT NULL,
   accepted_at INTEGER,
-  closed_at INTEGER
+  closed_at INTEGER,
+  reminded_at INTEGER
 );
 CREATE INDEX IF NOT EXISTS loops_status ON loops (status);
 CREATE TABLE IF NOT EXISTS seats (
@@ -63,6 +64,9 @@ export function openDb(path: string): Database {
   db.exec("PRAGMA foreign_keys = ON");
   db.exec("PRAGMA busy_timeout = 5000");
   db.exec(SCHEMA);
+  // A database created before the reminder existed gains its column.
+  const columns = db.query<{ name: string }, []>("PRAGMA table_info(loops)").all().map(c => c.name);
+  if (!columns.includes("reminded_at")) db.exec("ALTER TABLE loops ADD COLUMN reminded_at INTEGER");
   return db;
 }
 

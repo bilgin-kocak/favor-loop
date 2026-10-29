@@ -94,6 +94,9 @@ export function createBot(deps: BotDeps, botInfo?: UserFromGetMe) {
   const agreed = new Set<number>();
   const memberOf = (userId: number) => identity.forTelegram(userId);
   const boardUrl = `${deps.publicBaseUrl}/board`;
+  const reports = new Map<number, { text: string; at: number }>();
+  /** Telegram refuses late or repeated callback answers ("query is too old"); that must never undo any work. */
+  const ack = (c: Context, other?: Parameters<Context["answerCallbackQuery"]>[0]) => c.answerCallbackQuery(other).then(() => {}, () => {});
 
   // ---------------------------------------------------------------- routes (sealed chat ids)
   const remember = (memberId: string, chatId: number) =>
@@ -149,6 +152,12 @@ export function createBot(deps: BotDeps, botInfo?: UserFromGetMe) {
           break;
         case "completed":
           void send(chatId, `💫 <b>Loop complete!</b> All ${view.favorsTotal} favors happened and were confirmed.\nWatch it light up on the board: ${boardUrl}`);
+          break;
+        case "remind":
+          if (view.status === "accepted" && view.youReceive && !view.youReceived) {
+            void send(chatId, `⏰ Did you receive <b>${esc(view.youReceive.label)}</b> from ${esc(view.youReceive.from)}? When you have, tap the button, so the loop can close.`,
+              new InlineKeyboard().text("I received it ✅", `c:${view.loopId}`));
+          }
           break;
       }
     }
@@ -322,13 +331,29 @@ export function createBot(deps: BotDeps, botInfo?: UserFromGetMe) {
     const changed = core.resume(village, memberOf(c.from.id));
     await c.reply(changed ? "You are back in the pool. I will message you when I find a loop." : "Your matching is not paused.");
   });
+  // A report goes to the organisers only after the resident chooses whether their username goes with it.
   pm.command("report", async c => {
     const text = c.match.trim();
     if (!text) return c.reply("Tell me what happened after the command, for example: /report the person never showed up");
     if (deps.adminIds.size === 0) return c.reply("Reports are not set up yet. Please find an organiser in the village.");
-    const from = c.from.username ? `@${c.from.username}` : "a resident without a Telegram username";
-    for (const admin of deps.adminIds) await send(Number(admin), `🚩 <b>Favor Loop report</b> from ${esc(from)}:\n${esc(text.slice(0, 1500))}`);
-    await c.reply("Thanks, an organiser will look at it. Your Telegram username, if you have one, went with the report so they can reply.");
+    reports.set(c.from.id, { text: text.slice(0, 1500), at: Date.now() });
+    const kb = new InlineKeyboard();
+    if (c.from.username) kb.text(`Send with @${c.from.username}, so they can reply`, "rep:with").row();
+    kb.text(c.from.username ? "Send without my username" : "Send", "rep:anon").row().text("Cancel", "rep:no");
+    await c.reply(
+      `Send this to an organiser?\n\n${text.slice(0, 1500)}${c.from.username ? "" : "\n\nYou have no Telegram username, so an organiser cannot reply to you here; find them in the village if you want to talk."}`,
+      { reply_markup: kb },
+    );
+  });
+  pm.callbackQuery(/^rep:(with|anon|no)$/, async c => {
+    await ack(c);
+    await c.editMessageReplyMarkup({ reply_markup: undefined }).catch(() => {});
+    const report = reports.get(c.from.id);
+    reports.delete(c.from.id);
+    if (c.match[1] === "no" || !report) return c.reply(report ? "Not sent." : "That report has expired. Send /report again.");
+    const from = c.match[1] === "with" && c.from.username ? `@${c.from.username}` : "a resident who chose not to share their username";
+    for (const admin of deps.adminIds) await send(Number(admin), `🚩 <b>Favor Loop report</b> from ${esc(from)}:\n${esc(report.text)}`);
+    await c.reply("Thanks, an organiser will look at it.");
   });
   pm.command("stats", async c => {
     if (!deps.adminIds.has(String(c.from.id))) return c.reply("That command is for organisers.");
@@ -357,19 +382,19 @@ export function createBot(deps: BotDeps, botInfo?: UserFromGetMe) {
   // ---------------------------------------------------------------- buttons
   pm.callbackQuery("agree", async c => {
     agreed.add(c.from.id);
-    await c.answerCallbackQuery();
+    await ack(c);
     await chooseMode(c);
   });
   pm.callbackQuery("edit", async c => {
-    await c.answerCallbackQuery();
+    await ack(c);
     await chooseMode(c);
   });
   pm.callbackQuery("pick", async c => {
-    await c.answerCallbackQuery();
+    await ack(c);
     await show(c, newDraft(c.from.id), false);
   });
   pm.callbackQuery("agent", async c => {
-    await c.answerCallbackQuery();
+    await ack(c);
     const draft = newDraft(c.from.id);
     draft.awaitingAgent = true;
     await c.reply(
@@ -381,7 +406,7 @@ export function createBot(deps: BotDeps, botInfo?: UserFromGetMe) {
   const draftFor = async (c: Context): Promise<Draft | null> => {
     const draft = c.from ? drafts.get(c.from.id) : undefined;
     if (!draft) {
-      await c.answerCallbackQuery({ text: "That menu has expired. Send /join to start again.", show_alert: true });
+      await ack(c, { text: "That menu has expired. Send /join to start again.", show_alert: true });
       return null;
     }
     draft.touched = Date.now();
@@ -393,22 +418,22 @@ export function createBot(deps: BotDeps, botInfo?: UserFromGetMe) {
     const draft = await draftFor(c);
     if (!draft) return;
     const id = FAVORS[Number(c.match[1])]?.id;
-    if (!id) return c.answerCallbackQuery();
-    if (!draft.offers.includes(id) && draft.offers.length >= 3) return c.answerCallbackQuery({ text: "Pick at most 3.", show_alert: true });
+    if (!id) return ack(c);
+    if (!draft.offers.includes(id) && draft.offers.length >= 3) return ack(c, { text: "Pick at most 3.", show_alert: true });
     draft.offers = toggle(draft.offers, id);
     draft.wants = draft.wants.filter(w => w !== id);
-    await c.answerCallbackQuery();
+    await ack(c);
     await show(c, draft, true);
   });
   pm.callbackQuery(/^w:(\d+)$/, async c => {
     const draft = await draftFor(c);
     if (!draft) return;
     const id = FAVORS[Number(c.match[1])]?.id;
-    if (!id) return c.answerCallbackQuery();
-    if (draft.offers.includes(id)) return c.answerCallbackQuery({ text: "You offer that one, so it cannot be a want too.", show_alert: true });
-    if (!draft.wants.includes(id) && draft.wants.length >= 3) return c.answerCallbackQuery({ text: "Pick at most 3.", show_alert: true });
+    if (!id) return ack(c);
+    if (draft.offers.includes(id)) return ack(c, { text: "You offer that one, so it cannot be a want too.", show_alert: true });
+    if (!draft.wants.includes(id) && draft.wants.length >= 3) return ack(c, { text: "Pick at most 3.", show_alert: true });
     draft.wants = toggle(draft.wants, id);
-    await c.answerCallbackQuery();
+    await ack(c);
     await show(c, draft, true);
   });
   pm.callbackQuery("g", async c => {
@@ -416,7 +441,7 @@ export function createBot(deps: BotDeps, botInfo?: UserFromGetMe) {
     if (!draft) return;
     draft.giftOnly = !draft.giftOnly;
     if (draft.giftOnly) draft.wants = [];
-    await c.answerCallbackQuery();
+    await ack(c);
     await show(c, draft, true);
   });
   pm.callbackQuery(/^s:(\d+)$/, async c => {
@@ -424,14 +449,14 @@ export function createBot(deps: BotDeps, botInfo?: UserFromGetMe) {
     if (!draft) return;
     const id = SLOTS[Number(c.match[1])]?.id;
     if (id) draft.availability = toggle(draft.availability, id);
-    await c.answerCallbackQuery();
+    await ack(c);
     await show(c, draft, true);
   });
   pm.callbackQuery(/^h:([01])$/, async c => {
     const draft = await draftFor(c);
     if (!draft) return;
     draft.shareHandle = c.match[1] === "1";
-    await c.answerCallbackQuery();
+    await ack(c);
     await show(c, draft, true);
   });
   pm.callbackQuery(/^nav:(offers|wants|slots|handle|review)$/, async c => {
@@ -439,13 +464,13 @@ export function createBot(deps: BotDeps, botInfo?: UserFromGetMe) {
     if (!draft) return;
     const to = c.match[1] as Step;
     if (to !== "offers" && (draft.offers.length < 1 || draft.offers.length > 3)) {
-      return c.answerCallbackQuery({ text: "Pick 1 to 3 favors you can give first.", show_alert: true });
+      return ack(c, { text: "Pick 1 to 3 favors you can give first.", show_alert: true });
     }
     if ((to === "slots" || to === "handle" || to === "review") && !draft.giftOnly && draft.wants.length < 1) {
-      return c.answerCallbackQuery({ text: "Pick at least one favor you would like, or tick 'I only want to give'.", show_alert: true });
+      return ack(c, { text: "Pick at least one favor you would like, or tick 'I only want to give'.", show_alert: true });
     }
     draft.step = to;
-    await c.answerCallbackQuery();
+    await ack(c);
     await show(c, draft, true);
   });
   pm.callbackQuery("join", async c => {
@@ -455,65 +480,73 @@ export function createBot(deps: BotDeps, botInfo?: UserFromGetMe) {
     const username = c.from.username;
     const wasMember = core.isMember(village, memberId);
     remember(memberId, c.chat.id); // before joining, so a loop proposed at once reaches this chat
+    let result: ReturnType<typeof core.join>;
     try {
-      const result = core.join(village, memberId, "tg", {
+      result = core.join(village, memberId, "tg", {
         offers: draft.offers,
         wants: draft.giftOnly ? [] : draft.wants,
         giftOnly: draft.giftOnly,
         availability: draft.availability,
         ...(username && draft.shareHandle && /^[A-Za-z0-9_]{5,32}$/.test(username) ? { contactHandle: username } : {}),
       });
-      drafts.delete(c.from.id);
-      await c.answerCallbackQuery({ text: "Saved!" });
-      await c.editMessageReplyMarkup({ reply_markup: undefined }).catch(() => {});
-      const next = result.newProposal ? "A loop was found right away: see the message below." : result.openLoops > 0 ? "Your open loop stays as it is." : "I will message you as soon as I find a loop. Bring a friend: the more people join, the more loops close.";
-      await c.reply(`${wasMember ? "Updated" : "You are in"} ✅\n${next}\n\n/status shows your favors and loops.`);
     } catch (e) {
       if (!wasMember) village.db.query("DELETE FROM tg_routes WHERE member_id = ?").run(memberId);
       const detail = e instanceof AppError ? e.detail : "Something went wrong; please try again.";
-      await c.answerCallbackQuery({ text: detail.slice(0, 190), show_alert: true });
+      return ack(c, { text: detail.slice(0, 190), show_alert: true });
     }
+    drafts.delete(c.from.id);
+    await ack(c, { text: "Saved!" });
+    await c.editMessageReplyMarkup({ reply_markup: undefined }).catch(() => {});
+    const next = result.newProposal ? "A loop was found right away: see the message below." : result.openLoops > 0 ? "Your open loop stays as it is." : "I will message you as soon as I find a loop. Bring a friend: the more people join, the more loops close.";
+    await c.reply(`${wasMember ? "Updated" : "You are in"} ✅\n${next}\n\n/status shows your favors and loops.`).catch(() => {});
   });
+  const refusal = (e: unknown) => (e instanceof AppError ? e.detail.slice(0, 190) : "Something went wrong.");
   pm.callbackQuery(/^a:([0-9a-f-]{36}):([yn])$/, async c => {
+    let r: ReturnType<typeof core.answer>;
     try {
-      const r = core.answer(village, memberOf(c.from.id), c.match[1], c.match[2] === "y" ? "yes" : "no");
-      await c.answerCallbackQuery({ text: c.match[2] === "y" ? "You said yes" : "You said no" });
-      if (r.loop.status === "proposed") {
-        const m = proposalMessage(r.loop);
-        await c.editMessageText(m.text, { parse_mode: "HTML", reply_markup: m.keyboard }).catch(() => {});
-      } else {
-        // accepted: the accepted message arrives as its own message; dissolved: say so here
-        await c.editMessageReplyMarkup({ reply_markup: undefined }).catch(() => {});
-        if (r.loop.status === "dissolved") await c.reply(esc(r.text));
-      }
+      r = core.answer(village, memberOf(c.from.id), c.match[1], c.match[2] === "y" ? "yes" : "no");
     } catch (e) {
-      await c.answerCallbackQuery({ text: e instanceof AppError ? e.detail.slice(0, 190) : "Something went wrong.", show_alert: true });
+      await ack(c, { text: refusal(e), show_alert: true });
       await c.editMessageReplyMarkup({ reply_markup: undefined }).catch(() => {});
+      return;
+    }
+    await ack(c, { text: c.match[2] === "y" ? "You said yes" : "You said no" });
+    if (r.loop.status === "proposed") {
+      const m = proposalMessage(r.loop);
+      await c.editMessageText(m.text, { parse_mode: "HTML", reply_markup: m.keyboard }).catch(() => {});
+    } else {
+      // accepted: the accepted message arrives as its own message; dissolved: say so here
+      await c.editMessageReplyMarkup({ reply_markup: undefined }).catch(() => {});
+      if (r.loop.status === "dissolved") await c.reply(esc(r.text)).catch(() => {});
     }
   });
   pm.callbackQuery(/^c:([0-9a-f-]{36})$/, async c => {
+    let r: ReturnType<typeof core.confirm>;
     try {
-      const r = core.confirm(village, memberOf(c.from.id), c.match[1], true);
-      await c.answerCallbackQuery({ text: "Confirmed ✅" });
-      await c.editMessageReplyMarkup({ reply_markup: undefined }).catch(() => {});
-      if (r.loop.status !== "completed") await c.reply(esc(r.text));
+      r = core.confirm(village, memberOf(c.from.id), c.match[1], true);
     } catch (e) {
-      await c.answerCallbackQuery({ text: e instanceof AppError ? e.detail.slice(0, 190) : "Something went wrong.", show_alert: true });
+      return ack(c, { text: refusal(e), show_alert: true });
     }
+    await ack(c, { text: "Confirmed ✅" });
+    await c.editMessageReplyMarkup({ reply_markup: undefined }).catch(() => {});
+    if (r.loop.status !== "completed") await c.reply(esc(r.text)).catch(() => {});
   });
   pm.callbackQuery("resume", async c => {
     const changed = core.resume(village, memberOf(c.from.id));
-    await c.answerCallbackQuery({ text: changed ? "You are back in the pool" : "Not paused" });
+    await ack(c, { text: changed ? "You are back in the pool" : "Not paused" });
     await c.editMessageReplyMarkup({ reply_markup: undefined }).catch(() => {});
   });
   pm.callbackQuery(/^leave:(yes|no)$/, async c => {
-    await c.answerCallbackQuery();
+    // Delete before any Telegram call, so a refused callback answer can never skip the deletion.
+    const r = c.match[1] === "yes" ? core.leave(village, memberOf(c.from.id)) : null;
+    if (r) {
+      drafts.delete(c.from.id);
+      agreed.delete(c.from.id);
+      reports.delete(c.from.id);
+    }
+    await ack(c);
     await c.editMessageReplyMarkup({ reply_markup: undefined }).catch(() => {});
-    if (c.match[1] === "no") return c.reply("Nothing changed.");
-    drafts.delete(c.from.id);
-    agreed.delete(c.from.id);
-    const r = core.leave(village, memberOf(c.from.id));
-    await c.reply(`${r.text} Send /start if you ever want to come back.`);
+    await c.reply(r ? `${r.text} Send /start if you ever want to come back.` : "Nothing changed.").catch(() => {});
   });
 
   // ---------------------------------------------------------------- free text: an agent's suggestion
@@ -543,27 +576,59 @@ export function createBot(deps: BotDeps, botInfo?: UserFromGetMe) {
   // Forget idle drafts after two hours.
   setInterval(() => {
     for (const [userId, draft] of drafts) if (Date.now() - draft.touched > 2 * 3600_000) drafts.delete(userId);
+    for (const [userId, report] of reports) if (Date.now() - report.at > 2 * 3600_000) reports.delete(userId);
   }, 10 * 60_000);
 
   return { bot, onLoopEvent, drafts };
 }
 
-/** Connects to Telegram and starts long polling. Never throws: without a bot the web side keeps running. */
-export async function startBot(deps: BotDeps) {
+const COMMANDS = [
+  { command: "start", description: "Start, or see where you are" },
+  { command: "status", description: "Your favors and loops" },
+  { command: "join", description: "Choose or change your favors" },
+  { command: "help", description: "How it works and commands" },
+  { command: "leave", description: "Delete everything Favor Loop holds about you" },
+  { command: "report", description: "Tell an organiser about a problem" },
+];
+
+/**
+ * Connects to Telegram and long-polls, in the background. Polling stops for good on some errors (401, or 409
+ * when a second process polls the same token) and init can fail on a network blip, so a supervisor retries
+ * with backoff up to a minute, forever. The web side and the MCP endpoint never wait for it.
+ */
+export function startBot(deps: BotDeps) {
   const { bot, onLoopEvent } = createBot(deps);
   const log = deps.log;
-  await bot.init();
-  await bot.api.setMyCommands([
-    { command: "start", description: "Start, or see where you are" },
-    { command: "status", description: "Your favors and loops" },
-    { command: "join", description: "Choose or change your favors" },
-    { command: "help", description: "How it works and commands" },
-    { command: "leave", description: "Delete everything Favor Loop holds about you" },
-    { command: "report", description: "Tell an organiser about a problem" },
-  ]).catch(() => log({ event: "bot", warning: "setMyCommands failed" }));
-  bot.start({
-    allowed_updates: ["message", "callback_query"],
-    onStart: info => log({ event: "bot", started: info.username }),
-  }).catch(e => log({ event: "bot", error: e instanceof GrammyError ? e.error_code : "polling stopped" }));
-  return { url: `https://t.me/${bot.botInfo.username}`, onLoopEvent, stop: () => bot.stop() };
+  let url: string | null = null;
+  let stopped = false;
+  let commandsSet = false;
+  const supervise = async (attempt: number): Promise<void> => {
+    try {
+      await bot.init();
+      url = `https://t.me/${bot.botInfo.username}`;
+      if (!commandsSet) commandsSet = await bot.api.setMyCommands(COMMANDS).catch(() => false);
+      await bot.start({
+        allowed_updates: ["message", "callback_query"],
+        onStart: info => {
+          attempt = 0;
+          log({ event: "bot", started: info.username });
+        },
+      });
+    } catch (e) {
+      const code = e instanceof GrammyError ? e.error_code : "network";
+      log({ event: "bot", error: code, detail: code === 409 ? "another process polls this token" : "polling stopped; retrying" });
+    }
+    if (stopped) return;
+    await Bun.sleep(Math.min(60_000, 2_000 * 2 ** attempt));
+    if (!stopped) return supervise(attempt + 1);
+  };
+  void supervise(0);
+  return {
+    url: () => url,
+    onLoopEvent,
+    stop: async () => {
+      stopped = true;
+      await bot.stop();
+    },
+  };
 }

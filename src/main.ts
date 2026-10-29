@@ -67,21 +67,17 @@ setInterval(() => {
   }
 }, 3_000);
 
-let botUrl: string | null = null;
+let botUrl = (): string | null => null;
 let stopBot = async () => {};
 if (config.telegramToken) {
-  try {
-    const { startBot } = await import("./bot");
-    const bot = await startBot({
-      token: config.telegramToken, ctx, identity, sealer: makeSealer(salt), sim,
-      publicBaseUrl: config.publicBaseUrl, adminIds: config.adminTgIds, log,
-    });
-    listeners.push(bot.onLoopEvent);
-    botUrl = bot.url;
-    stopBot = () => bot.stop();
-  } catch (e) {
-    log({ event: "bot", error: e instanceof Error ? e.name : "unknown", detail: "the bot did not start; the web side runs on" });
-  }
+  const { startBot } = await import("./bot");
+  const bot = startBot({
+    token: config.telegramToken, ctx, identity, sealer: makeSealer(salt), sim,
+    publicBaseUrl: config.publicBaseUrl, adminIds: config.adminTgIds, log,
+  });
+  listeners.push(bot.onLoopEvent);
+  botUrl = bot.url;
+  stopBot = () => bot.stop();
 }
 
 const server = Bun.serve({
@@ -103,10 +99,10 @@ const server = Bun.serve({
     simGraph: cached(() => core.boardGraph(sim.ctx, identity.anon), 1_000),
     demoGraph: demoCtx ? cached(() => core.boardGraph(demoCtx, identity.anon), 1_000) : null,
     restartSim: () => sim.restart(),
-    botUrl: () => botUrl,
+    botUrl: () => botUrl(),
   }),
 });
-log({ event: "listening", port: server.port, bot: botUrl !== null });
+log({ event: "listening", port: server.port, bot: config.telegramToken !== "" });
 
 const every = (ms: number, name: string, fn: () => number) =>
   setInterval(() => {
