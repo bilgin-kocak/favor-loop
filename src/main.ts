@@ -58,7 +58,14 @@ const demoCtx: Ctx | null = config.demoKey
   : null;
 
 const sim = new SimVillage();
-setInterval(() => sim.step(), 3_000);
+setInterval(() => {
+  try {
+    sim.step();
+  } catch (e) {
+    log({ event: "sim", error: e instanceof Error ? e.name : "unknown" });
+    sim.reset();
+  }
+}, 3_000);
 
 let botUrl: string | null = null;
 let stopBot = async () => {};
@@ -112,7 +119,11 @@ const every = (ms: number, name: string, fn: () => number) =>
   }, ms);
 every(60_000, "expired", () => core.expireDue(ctx));
 every(10 * 60_000, "matcher", () => core.runMatcher(ctx).length);
-setInterval(purgeIfDue, 60 * 60_000);
+every(60 * 60_000, "purge", () => (purgeIfDue(), 0));
+
+// One stray error must not take the endpoint and the bot down mid-event: state lives in SQLite transactions.
+process.on("uncaughtException", e => log({ event: "uncaught", error: e.name }));
+process.on("unhandledRejection", e => log({ event: "unhandled", error: e instanceof Error ? e.name : "unknown" }));
 
 async function shutdown() {
   log({ event: "shutdown" });
