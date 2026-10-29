@@ -2,7 +2,7 @@
 
 **Title:** `Mini-apps: Favor Loop as a reviewed app (manifest, skill, contract, fixtures)`
 
-Add the demo video link when it is recorded (edit the open pull request). The body:
+The body:
 
 ---
 
@@ -11,7 +11,7 @@ Favor Loop finds loops of 15-minute favors between Edge City India residents: A 
 **This is a reviewed app.** `join`, `answer`, `confirm` and `leave` write per-resident state, so, like Kismet, it needs a bridge module, the app server's `subject` separation and `MINI_APP_FAVORLOOP_KEY` set by staff (I will send the key privately). **The three public reads (`how_it_works`, `menu`, `board`) need no token and no identity, so they could ship first as a read-only bundle if that is faster for the team.**
 
 - Live endpoint: https://favorloop.fly.dev/mcp (MCP `2025-06-18`, stateless, JSON answers, 32 KB cap, no redirects)
-- Demo video of an agent using it: to follow (I will add the link here)
+- Demo video (81 s): https://youtu.be/66FP1NdhuXc (the agent segment is re-typeset from a real Claude Code session with the Favor Loop skill and test accounts; the board shown is the simulated village)
 - Source: https://github.com/bilgin-kocak/favor-loop (manifest inputs and `tools/list` come from one schema file, `src/schemas.ts`)
 
 ### Files
