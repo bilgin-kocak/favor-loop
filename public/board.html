@@ -102,7 +102,8 @@
 
   function defs() {
     const d = el("defs", {}, svg);
-    const glow = el("filter", { id: "glow", x: "-50%", y: "-50%", width: "200%", height: "200%" }, d);
+    // userSpaceOnUse: a bounding-box filter region is empty for a horizontal line (a gift chain's edge has zero height).
+    const glow = el("filter", { id: "glow", filterUnits: "userSpaceOnUse", x: "0", y: "0", width: "100%", height: "100%" }, d);
     el("feGaussianBlur", { stdDeviation: "3.5", result: "b" }, glow);
     const merge = el("feMerge", {}, glow);
     el("feMergeNode", { in: "b" }, merge);
