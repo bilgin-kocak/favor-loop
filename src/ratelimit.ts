@@ -11,7 +11,7 @@ export class RateLimiter {
     const entry = this.hits.get(key);
     if (!entry || entry.resetAt <= now) {
       this.hits.set(key, { count: 1, resetAt: now + this.windowMs });
-      return true;
+      return this.limit >= 1;
     }
     entry.count += 1;
     return entry.count <= this.limit;
