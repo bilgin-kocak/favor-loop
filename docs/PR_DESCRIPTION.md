@@ -2,7 +2,7 @@
 
 **Title:** `Mini-apps: Favor Loop as a reviewed app (manifest, skill, contract, fixtures)`
 
-Replace the two `<...>` links before opening. The body:
+Add the demo video link when it is recorded (edit the open pull request). The body:
 
 ---
 
@@ -10,8 +10,8 @@ Favor Loop finds loops of 15-minute favors between Edge City India residents: A 
 
 **This is a reviewed app.** `join`, `answer`, `confirm` and `leave` write per-resident state, so, like Kismet, it needs a bridge module, the app server's `subject` separation and `MINI_APP_FAVORLOOP_KEY` set by staff (I will send the key privately). **The three public reads (`how_it_works`, `menu`, `board`) need no token and no identity, so they could ship first as a read-only bundle if that is faster for the team.**
 
-- Live endpoint: `<https://HOST/mcp>` (MCP `2025-06-18`, stateless, JSON answers, 32 KB cap, no redirects)
-- Demo video of an agent using it: `<VIDEO LINK>`
+- Live endpoint: https://favorloop.fly.dev/mcp (MCP `2025-06-18`, stateless, JSON answers, 32 KB cap, no redirects)
+- Demo video of an agent using it: to follow (I will add the link here)
 - Source: https://github.com/bilgin-kocak/favor-loop (manifest inputs and `tools/list` come from one schema file, `src/schemas.ts`)
 
 ### Files
@@ -34,6 +34,6 @@ Members are keyed by an HMAC of `X-Village-Subject`; the subject is never stored
 - `bun run conformance ... --fixtures scripts/tests/fixtures/favorloop --base origin/main`: **`passed: true`** (51 fixture files, 32 error bodies)
 - review bot: `NEEDS_HUMAN`, no `FAIL`: `new_app`, `catalog_unlisted` (and `core_path` for the fixture files, which live outside `mini-apps/` as the guide asks)
 - `bun test scripts/tests/mini-app-manifests.test.ts`: red only on `favorloop/: not in catalog.json`, as expected for a new app
-- `--service <https://HOST/mcp>` (advisory): `service.reachability` reports FAIL by design, because public reads answer without a token (as Kismet's do), so a token-less `initialize` answers 200, not 401
+- `--service https://favorloop.fly.dev/mcp` (advisory): `service.reachability` reports FAIL by design, because public reads answer without a token (as Kismet's do), so a token-less `initialize` answers 200, not 401
 
-Residents are using it this week through the Favor Loop Telegram bot, which calls the same core.
+Residents can use it this week through the Favor Loop Telegram bot (https://t.me/favor_loop_village_bot), which calls the same core.

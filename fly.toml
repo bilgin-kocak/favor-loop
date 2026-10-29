@@ -2,7 +2,7 @@
 # running instance, so the machine never auto-stops. Change `app` if the name is taken, and set
 # PUBLIC_BASE_URL to match.
 app = "favorloop"
-primary_region = "bom"
+primary_region = "sin"
 
 [env]
   PORT = "8080"

@@ -68,14 +68,14 @@ Open http://localhost:8080/board?view=sim to see the simulated village. Leave `T
 
 ## Deploy to Fly.io
 
-`fly.toml` runs one machine in Mumbai (`bom`) with a volume for SQLite, and never auto-stops (the bot polls). If the name `favorloop` is taken, change `app` and `PUBLIC_BASE_URL` in `fly.toml`.
+`fly.toml` runs one machine in Singapore (`sin`, the closest Fly region to Goa) with a volume for SQLite, and never auto-stops (the bot polls). If the name `favorloop` is taken, change `app` and `PUBLIC_BASE_URL` in `fly.toml`.
 
 ```bash
 fly launch --copy-config --no-deploy
 ```
 
 ```bash
-fly volumes create favorloop_data --region bom --size 1
+fly volumes create favorloop_data --region sin --size 1
 ```
 
 Generate the three secrets and keep them in your password manager (`openssl rand -hex 32` each), then:
