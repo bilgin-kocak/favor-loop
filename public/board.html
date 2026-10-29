@@ -1,1 +1,213 @@
-<!doctype html><title>Favor Loop</title><p>board</p>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Favor Loop board</title>
+<style>
+  :root {
+    --bg: #0b1020; --panel: #121a30; --ink: #e8eefc; --muted: #8a97b8; --line: #2a3557;
+    --proposed: #7f8fb8; --accepted: #e8eefc; --confirmed: #ffc857; --dot: #a9b7d9; --sim: #ff6b9a;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  header { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; padding: 16px 24px 8px; }
+  h1 { margin: 0; font-size: clamp(22px, 3vw, 34px); letter-spacing: 0.5px; }
+  h1 span { color: var(--confirmed); }
+  .pitch { color: var(--muted); font-size: clamp(14px, 1.6vw, 18px); flex: 1 1 260px; }
+  .switch { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
+  .switch a { color: var(--muted); text-decoration: none; padding: 6px 14px; font-weight: 600; }
+  .switch a.on { background: var(--ink); color: var(--bg); }
+  .switch a.on.sim { background: var(--sim); color: #fff; }
+  .counters { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; padding: 8px 24px; }
+  .counter { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 10px 14px; }
+  .counter b { display: block; font-size: clamp(26px, 4.2vw, 56px); line-height: 1.05; font-variant-numeric: tabular-nums; }
+  .counter span { color: var(--muted); font-size: clamp(11px, 1.2vw, 15px); }
+  .counter.gold b { color: var(--confirmed); }
+  .banner { display: none; margin: 6px 24px 0; padding: 8px 14px; border-radius: 10px; background: rgba(255, 107, 154, 0.12);
+    border: 1px solid var(--sim); color: #ffd1e0; font-weight: 600; }
+  .sim .banner { display: block; }
+  .watermark { display: none; position: fixed; right: 2vw; bottom: 3vh; font-size: clamp(40px, 9vw, 140px); font-weight: 900;
+    color: var(--sim); opacity: 0.22; letter-spacing: 6px; pointer-events: none; transform: rotate(-8deg); z-index: 5; }
+  .sim .watermark { display: block; }
+  main { padding: 0 12px 12px; }
+  svg { width: 100%; display: block; }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 18px; padding: 4px 24px 18px; color: var(--muted); font-size: 14px; }
+  .legend i { display: inline-block; width: 28px; height: 0; vertical-align: middle; margin-right: 6px; border-top: 3px solid; }
+  .empty { fill: var(--muted); font-size: 18px; }
+  .join { color: var(--ink); }
+  .join a { color: var(--confirmed); }
+  @keyframes close-ring { from { stroke-dashoffset: var(--len); opacity: 1; } to { stroke-dashoffset: 0; opacity: 1; } }
+  @keyframes pulse { 0% { opacity: 0.2; } 50% { opacity: 1; } 100% { opacity: 0.55; } }
+  .ring { fill: none; stroke: var(--confirmed); stroke-width: 3; opacity: 0.55; }
+  .ring.closing { stroke-dasharray: var(--len); animation: close-ring 2.2s ease-out forwards, pulse 1.6s ease-in-out 2.2s 1; }
+  @media (max-width: 640px) {
+    header, .counters, .legend { padding-left: 16px; padding-right: 16px; }
+    .counters { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .banner { margin-left: 16px; margin-right: 16px; }
+  }
+</style>
+</head>
+<body>
+<div class="watermark">SIMULATED</div>
+<header>
+  <h1>Favor <span>Loop</span></h1>
+  <div class="pitch">No two of us could trade. The three of us could. <span class="join">Join: <a href="{{BOT_URL}}">{{BOT_LABEL}}</a></span></div>
+  <nav class="switch" aria-label="Real or simulated">
+    <a href="/board" id="real">Real</a><a href="/board?view=sim" id="simulated">Simulated</a>
+  </nav>
+</header>
+<div class="banner">SIMULATED village: up to 150 synthetic members run through the same matcher. None of this is real residents, and none of it counts as real.</div>
+<section class="counters" aria-live="polite">
+  <div class="counter"><b id="c-members">0</b><span id="l-members">residents joined</span></div>
+  <div class="counter"><b id="c-proposed">0</b><span>loops proposed</span></div>
+  <div class="counter"><b id="c-accepted">0</b><span>loops accepted</span></div>
+  <div class="counter gold"><b id="c-completed">0</b><span>loops completed</span></div>
+  <div class="counter gold"><b id="c-favors">0</b><span>favors confirmed</span></div>
+</section>
+<main><svg id="board" role="img" aria-label="Anonymous loops of favors"></svg></main>
+<div class="legend">
+  <span><i style="border-top-style: dashed; border-color: var(--proposed)"></i>proposed</span>
+  <span><i style="border-color: var(--accepted)"></i>everyone said yes</span>
+  <span><i style="border-color: var(--confirmed)"></i>favor confirmed</span>
+  <span>⭕ a gold ring closes when every favor in a loop is confirmed</span>
+  <span>Anonymous: no names, no handles. <span id="updated"></span></span>
+</div>
+<script>
+(() => {
+  const sim = new URLSearchParams(location.search).get("view") === "sim";
+  document.body.classList.toggle("sim", sim);
+  document.getElementById(sim ? "simulated" : "real").classList.add("on");
+  if (sim) document.getElementById("simulated").classList.add("sim");
+  document.getElementById("l-members").textContent = sim ? "simulated members" : "residents joined";
+  const EMOJI = { code_review: "💻", portrait_photo: "📸", stretch_session: "🧘", pitch_feedback: "🎤", cv_review: "📄", design_feedback: "🎨",
+    ai_tool_setup: "🤖", wallet_setup: "👛", language_basics: "🗣️", music_lesson: "🎵", proofreading: "✍️", goa_tips: "🌴" };
+  const svg = document.getElementById("board");
+  const NS = "http://www.w3.org/2000/svg";
+  const completedSeen = new Set();
+  let first = true;
+
+  const el = (name, attrs, parent) => {
+    const node = document.createElementNS(NS, name);
+    for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
+    if (parent) parent.appendChild(node);
+    return node;
+  };
+
+  function defs() {
+    const d = el("defs", {}, svg);
+    const glow = el("filter", { id: "glow", x: "-50%", y: "-50%", width: "200%", height: "200%" }, d);
+    el("feGaussianBlur", { stdDeviation: "3.5", result: "b" }, glow);
+    const merge = el("feMerge", {}, glow);
+    el("feMergeNode", { in: "b" }, merge);
+    el("feMergeNode", { in: "SourceGraphic" }, merge);
+    for (const [id, color] of [["proposed", "var(--proposed)"], ["accepted", "var(--accepted)"], ["confirmed", "var(--confirmed)"]]) {
+      const m = el("marker", { id: `arrow-${id}`, viewBox: "0 0 10 10", refX: "9", refY: "5", markerWidth: "5", markerHeight: "5", orient: "auto-start-reverse" }, d);
+      el("path", { d: "M0,0 L10,5 L0,10 z", fill: color }, m);
+    }
+  }
+
+  function points(loop, cx, cy, r) {
+    const n = loop.members.length;
+    if (loop.shape === "chain") return loop.members.map((_, i) => [cx - r + (2 * r * i) / Math.max(1, n - 1), cy]);
+    const start = loop.shape === "swap" ? Math.PI : -Math.PI / 2;
+    return loop.members.map((_, i) => [cx + r * Math.cos(start + (2 * Math.PI * i) / n), cy + r * Math.sin(start + (2 * Math.PI * i) / n)]);
+  }
+
+  function drawLoop(loop, cx, cy, r) {
+    const g = el("g", {}, svg);
+    const pts = points(loop, cx, cy, r);
+    const at = Object.fromEntries(loop.members.map((m, i) => [m, pts[i]]));
+    const complete = loop.status === "completed";
+    if (complete) {
+      const ringR = r + 20;
+      const len = (2 * Math.PI * ringR).toFixed(1);
+      const closing = !first && !completedSeen.has(loop.id);
+      el("circle", { cx, cy, r: ringR, class: `ring${closing ? " closing" : ""}`, style: `--len:${len}`, filter: "url(#glow)" }, g);
+      completedSeen.add(loop.id);
+    }
+    loop.edges.forEach((e, i) => {
+      const [x1, y1] = at[e.from], [x2, y2] = at[e.to];
+      const kind = e.confirmed ? "confirmed" : loop.status === "proposed" ? "proposed" : "accepted";
+      const d = loop.shape === "chain" ? `M${x1 + 8},${y1} L${x2 - 9},${y2}` : arc(cx, cy, r, x1, y1, x2, y2);
+      el("path", {
+        d, fill: "none", stroke: `var(--${kind})`, "stroke-width": kind === "proposed" ? 2 : 3,
+        "stroke-dasharray": kind === "proposed" ? "6 6" : "none", "marker-end": `url(#arrow-${kind})`,
+        ...(kind === "confirmed" ? { filter: "url(#glow)" } : {}), opacity: kind === "proposed" ? 0.8 : 1,
+      }, g);
+      const mid = midpoint(loop, cx, cy, r, x1, y1, x2, y2, i);
+      const label = el("text", { x: mid[0], y: mid[1], "text-anchor": "middle", "dominant-baseline": "central", "font-size": "17" }, g);
+      label.textContent = EMOJI[e.favor] || "•";
+    });
+    for (const [x, y] of pts) el("circle", { cx: x, cy: y, r: 7, fill: complete ? "var(--confirmed)" : "var(--dot)", stroke: "var(--bg)", "stroke-width": 2 }, g);
+  }
+
+  // A clockwise arc on the ring from one dot to the next, stopping short of the dots.
+  function arc(cx, cy, r, x1, y1, x2, y2) {
+    const a1 = Math.atan2(y1 - cy, x1 - cx) + 0.2, a2 = Math.atan2(y2 - cy, x2 - cx) - 0.2;
+    let span = a2 - a1;
+    while (span <= 0) span += 2 * Math.PI;
+    const sx = cx + r * Math.cos(a1), sy = cy + r * Math.sin(a1), ex = cx + r * Math.cos(a1 + span), ey = cy + r * Math.sin(a1 + span);
+    return `M${sx.toFixed(1)},${sy.toFixed(1)} A${r},${r} 0 ${span > Math.PI ? 1 : 0} 1 ${ex.toFixed(1)},${ey.toFixed(1)}`;
+  }
+  function midpoint(loop, cx, cy, r, x1, y1, x2, y2) {
+    if (loop.shape === "chain") return [(x1 + x2) / 2, y1 - 16];
+    const a1 = Math.atan2(y1 - cy, x1 - cx), a2 = Math.atan2(y2 - cy, x2 - cx);
+    let span = a2 - a1;
+    while (span <= 0) span += 2 * Math.PI;
+    const a = a1 + span / 2;
+    return [cx + (r + 15) * Math.cos(a), cy + (r + 15) * Math.sin(a)];
+  }
+
+  function render(data) {
+    const c = data.counts;
+    document.getElementById("c-members").textContent = c.members;
+    document.getElementById("c-proposed").textContent = c.loopsProposed;
+    document.getElementById("c-accepted").textContent = c.loopsAccepted;
+    document.getElementById("c-completed").textContent = c.loopsCompleted;
+    document.getElementById("c-favors").textContent = c.favorsConfirmed;
+    document.getElementById("updated").textContent = `Updated ${new Date().toLocaleTimeString()}.`;
+
+    const width = svg.clientWidth || 800;
+    const cell = width < 640 ? 118 : 164;
+    const cols = Math.max(2, Math.floor(width / cell));
+    const loops = [...data.loops].sort((a, b) => a.createdAt - b.createdAt);
+    const rows = Math.ceil(loops.length / cols);
+    const dot = 13, perRow = Math.max(1, Math.floor((width - 40) / dot));
+    const poolRows = Math.ceil(data.pool.length / perRow);
+    const height = Math.max(220, rows * cell + 70 + poolRows * dot + 20);
+    svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+    svg.setAttribute("height", height);
+    svg.replaceChildren();
+    defs();
+    if (!loops.length) {
+      const t = el("text", { x: width / 2, y: 70, "text-anchor": "middle", class: "empty" }, svg);
+      t.textContent = sim ? "The simulated village is starting..." : "No loops yet: the first one appears as soon as people join.";
+    }
+    loops.forEach((loop, i) => {
+      const cx = (i % cols) * cell + cell / 2 + (width - cols * cell) / 2;
+      const cy = Math.floor(i / cols) * cell + cell / 2;
+      drawLoop(loop, cx, cy, cell * 0.27);
+    });
+    const top = Math.max(rows * cell, loops.length ? 0 : 100) + 30;
+    const caption = el("text", { x: 20, y: top, fill: "var(--muted)", "font-size": "14" }, svg);
+    caption.textContent = `In the pool, waiting for a match: ${data.pool.length}`;
+    data.pool.forEach((_, i) => {
+      el("circle", { cx: 26 + (i % perRow) * dot, cy: top + 22 + Math.floor(i / perRow) * dot, r: 4, fill: "var(--dot)", opacity: 0.55 }, svg);
+    });
+    first = false;
+  }
+
+  async function poll() {
+    try {
+      const res = await fetch(`/api/board?view=${sim ? "sim" : "real"}`, { cache: "no-store" });
+      if (res.ok) render(await res.json());
+    } catch { /* keep the last picture */ }
+  }
+  poll();
+  setInterval(poll, 5000);
+  addEventListener("resize", () => { first = true; poll(); });
+})();
+</script>
+</body>
+</html>

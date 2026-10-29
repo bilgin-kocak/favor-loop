@@ -2,7 +2,9 @@
 import type { Server } from "bun";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { CHAT_ID_NOTE, howItWorks, PRIVACY_PROMISES, SAFETY } from "./content";
 import { handleMcp, type McpDeps } from "./mcp";
+import { FAVORS } from "./menu";
 
 export type WebDeps = {
   mcp: McpDeps;
@@ -18,6 +20,18 @@ const SECURITY_HEADERS = {
   "x-content-type-options": "nosniff",
   "referrer-policy": "no-referrer",
   "content-security-policy": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'",
+};
+
+const escapeHtml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const items = (lines: readonly string[]) => lines.map(line => `<li>${escapeHtml(line)}</li>`).join("");
+
+/** Page text that must say exactly what the bot and the MCP tools say comes from src/content.ts. */
+const SHARED_BLOCKS: Record<string, string> = {
+  "{{STEPS_LIST}}": items(howItWorks("").steps),
+  "{{PRIVACY_LIST}}": items(PRIVACY_PROMISES),
+  "{{CHAT_ID_NOTE}}": escapeHtml(CHAT_ID_NOTE),
+  "{{SAFETY_LIST}}": items(SAFETY),
+  "{{MENU_LIST}}": FAVORS.map(f => `<li><span>${f.emoji}</span> ${escapeHtml(f.label)} <code>${f.id}</code></li>`).join(""),
 };
 
 const json = (body: unknown, status = 200) =>
@@ -36,7 +50,9 @@ export function makeFetch(deps: WebDeps) {
   const templates = Object.fromEntries(PAGES.map(name => [name, readFileSync(join(deps.publicDir, `${name}.html`), "utf8")]));
   const page = (name: (typeof PAGES)[number]) => {
     const bot = deps.botUrl();
-    const html = templates[name]
+    let html = templates[name];
+    for (const [marker, block] of Object.entries(SHARED_BLOCKS)) html = html.replaceAll(marker, block);
+    html = html
       .replaceAll("{{BASE}}", deps.mcp.publicBaseUrl)
       .replaceAll("{{BOT_URL}}", bot ?? "#")
       .replaceAll("{{BOT_LABEL}}", bot ? bot.replace("https://", "") : "the Favor Loop Telegram bot (starting soon)");

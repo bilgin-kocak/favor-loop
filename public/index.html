@@ -1,1 +1,50 @@
-<!doctype html><title>Favor Loop</title><p>index</p>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Favor Loop</title>
+<meta name="description" content="Favor Loop finds loops of 15-minute favors between Edge City India residents: A helps B, B helps C, C helps A.">
+<style>
+  :root { --bg: #0b1020; --panel: #121a30; --ink: #e8eefc; --muted: #9aa6c4; --line: #2a3557; --gold: #ffc857; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 17px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 40px 16px 56px; }
+  h1 { font-size: clamp(36px, 7vw, 64px); margin: 0 0 6px; line-height: 1.05; }
+  h1 span { color: var(--gold); }
+  .lead { font-size: clamp(20px, 3.2vw, 28px); margin: 0 0 28px; }
+  .loop { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 0 0 28px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 16px; }
+  .card b { display: block; font-size: 15px; color: var(--muted); font-weight: 600; margin-bottom: 4px; }
+  .cta { display: flex; flex-wrap: wrap; gap: 12px; margin: 0 0 32px; }
+  .btn { display: inline-block; padding: 12px 20px; border-radius: 999px; text-decoration: none; font-weight: 700; border: 1px solid var(--line); color: var(--ink); }
+  .btn.primary { background: var(--gold); color: #1b1300; border-color: var(--gold); }
+  p, li { color: var(--muted); }
+  strong { color: var(--ink); }
+  footer { margin-top: 36px; font-size: 14px; color: var(--muted); }
+  a { color: var(--gold); }
+  @media (max-width: 640px) { .loop { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Favor <span>Loop</span></h1>
+  <p class="lead">No two of us could trade. The three of us could.</p>
+  <div class="loop">
+    <div class="card"><b>A</b>can review code and wants a portrait</div>
+    <div class="card"><b>B</b>takes portraits and wants a yoga session</div>
+    <div class="card"><b>C</b>teaches yoga and wants a code review</div>
+  </div>
+  <p><strong>No two of them could swap. Favor Loop closes the loop:</strong> A reviews C's code, C teaches B yoga, B takes A's portrait. Every favor is free, about 15 minutes, in a public place or online. A loop starts only when all three say yes, and whoever receives a favor confirms it happened.</p>
+  <div class="cta">
+    <a class="btn primary" href="{{BOT_URL}}">Join on Telegram</a>
+    <a class="btn" href="/board">Live board</a>
+    <a class="btn" href="/how">How it works and privacy</a>
+    <a class="btn" href="/sim">Simulated village</a>
+  </div>
+  <p>It also finds simple swaps and gift chains: someone who only wants to give starts a chain, A helps B, and the chain does not need to close.</p>
+  <p>Kismet finds who you should meet. <strong>Favor Loop finds who can help whom, and checks that the help actually happened.</strong></p>
+  <footer>For residents of Edge City India, Mandrem, Goa. Built as an Agent Village mini-app; until the Agent Village team installs it, residents use it through the Favor Loop Telegram bot.</footer>
+</div>
+</body>
+</html>

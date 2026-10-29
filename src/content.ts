@@ -11,6 +11,7 @@ export const PRIVACY_PROMISES = [
 ];
 
 // The bot cannot message anyone without their chat id, so its consent says so in the first line.
+export const CHAT_ID_NOTE = "The Telegram bot also keeps your chat id, encrypted, so it can message you about your loops; /leave deletes it.";
 export const TELEGRAM_CONSENT = [
   "Favor Loop stores only the favors you pick, your availability and, if you choose, your Telegram handle (plus your chat id, encrypted, so this bot can message you).",
   "Your handle is shown only to people in a loop you said yes to.",

@@ -1,1 +1,69 @@
-<!doctype html><title>Favor Loop</title><p>sim</p>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simulated village</title>
+<style>
+  :root { --bg: #0b1020; --panel: #121a30; --ink: #e8eefc; --muted: #9aa6c4; --line: #2a3557; --gold: #ffc857; --sim: #ff6b9a; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 17px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .wrap { max-width: 780px; margin: 0 auto; padding: 32px 16px 56px; }
+  .label { display: inline-block; background: var(--sim); color: #fff; font-weight: 900; letter-spacing: 4px; padding: 6px 14px; border-radius: 8px; font-size: clamp(22px, 5vw, 36px); }
+  h1 { font-size: clamp(28px, 5vw, 40px); margin: 14px 0 8px; }
+  p { color: var(--muted); }
+  strong { color: var(--ink); }
+  .counters { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin: 22px 0; }
+  .counter { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; }
+  .counter b { display: block; font-size: 34px; font-variant-numeric: tabular-nums; }
+  .counter span { color: var(--muted); font-size: 14px; }
+  .actions { display: flex; flex-wrap: wrap; gap: 12px; }
+  .btn { display: inline-block; padding: 12px 20px; border-radius: 999px; text-decoration: none; font-weight: 700; border: 1px solid var(--line); color: var(--ink); background: none; font-size: 16px; cursor: pointer; }
+  .btn.primary { background: var(--sim); border-color: var(--sim); color: #fff; }
+  a { color: var(--gold); }
+  #note { color: var(--muted); min-height: 1.6em; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <span class="label">SIMULATED</span>
+  <h1>The simulated village</h1>
+  <p>This shows how Favor Loop behaves at scale. <strong>Up to 150 synthetic members</strong>, each with 2 or 3 favors to give and to receive (portrait photos and AI tool setup are the popular asks, and a few members only want to give), arrive a few at a time. They run through <strong>the same matcher and the same loop rules</strong> as real residents, in a separate database that lives only in memory. Synthetic members say yes most of the time and confirm their favors after a while.</p>
+  <p><strong>Synthetic members are never counted as real anywhere.</strong> The real board and every real number come from real residents only.</p>
+  <div class="counters">
+    <div class="counter"><b id="members">0</b><span>simulated members</span></div>
+    <div class="counter"><b id="proposed">0</b><span>loops proposed</span></div>
+    <div class="counter"><b id="accepted">0</b><span>loops accepted</span></div>
+    <div class="counter"><b id="completed">0</b><span>loops completed</span></div>
+    <div class="counter"><b id="favors">0</b><span>favors confirmed</span></div>
+  </div>
+  <div class="actions">
+    <a class="btn primary" href="/board?view=sim">Watch it on the board</a>
+    <button class="btn" id="restart" type="button">Restart the simulation</button>
+    <a class="btn" href="/board">Real board</a>
+  </div>
+  <p id="note"></p>
+</div>
+<script>
+(() => {
+  const set = (id, v) => { document.getElementById(id).textContent = v; };
+  async function poll() {
+    try {
+      const res = await fetch("/api/board?view=sim", { cache: "no-store" });
+      if (!res.ok) return;
+      const { counts } = await res.json();
+      set("members", counts.members); set("proposed", counts.loopsProposed); set("accepted", counts.loopsAccepted);
+      set("completed", counts.loopsCompleted); set("favors", counts.favorsConfirmed);
+    } catch { /* try again next time */ }
+  }
+  document.getElementById("restart").addEventListener("click", async () => {
+    const res = await fetch("/api/sim/restart", { method: "POST" });
+    set("note", res.ok ? "A fresh simulated village is arriving." : "It restarted moments ago; give it a few seconds.");
+    poll();
+  });
+  poll();
+  setInterval(poll, 3000);
+})();
+</script>
+</body>
+</html>

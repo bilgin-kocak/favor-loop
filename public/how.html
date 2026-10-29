@@ -1,1 +1,61 @@
-<!doctype html><title>Favor Loop</title><p>how</p>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How Favor Loop works</title>
+<style>
+  :root { --bg: #0b1020; --panel: #121a30; --ink: #e8eefc; --muted: #9aa6c4; --line: #2a3557; --gold: #ffc857; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 17px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .wrap { max-width: 780px; margin: 0 auto; padding: 32px 16px 56px; }
+  h1 { font-size: clamp(30px, 5vw, 44px); margin: 0 0 8px; }
+  h2 { font-size: 22px; margin: 34px 0 10px; color: var(--gold); }
+  p, li { color: var(--muted); }
+  strong { color: var(--ink); }
+  ul, ol { padding-left: 22px; }
+  li { margin: 6px 0; }
+  .menu { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 18px; }
+  .menu code { color: var(--muted); opacity: 0.7; font-size: 13px; }
+  .box { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 6px 18px; }
+  a { color: var(--gold); }
+  nav a { margin-right: 14px; }
+  @media (max-width: 640px) { .menu { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav><a href="/">Favor Loop</a><a href="/board">Board</a><a href="{{BOT_URL}}">Telegram bot</a></nav>
+  <h1>How Favor Loop works</h1>
+  <p>Two people rarely want exactly what the other offers. Favor Loop finds groups where people can help each other even when no two of them could swap directly.</p>
+
+  <h2>In five steps</h2>
+  <ol>{{STEPS_LIST}}</ol>
+
+  <h2>Three shapes</h2>
+  <ul>
+    <li><strong>Swap:</strong> A helps B and B helps A.</li>
+    <li><strong>Three-way loop:</strong> A helps B, B helps C and C helps A. The showpiece: no two of them could trade.</li>
+    <li><strong>Gift chain:</strong> someone who only wants to give helps A, and A helps B. The chain does not need to close.</li>
+  </ul>
+
+  <h2>The menu</h2>
+  <p>Every favor takes about 15 minutes, is free and happens in a public place or online.</p>
+  <ul class="menu">{{MENU_LIST}}</ul>
+
+  <h2>Three yeses, then proof</h2>
+  <p>A loop starts only when every member says yes within 6 hours. A no is never shown to the others: they simply hear the loop did not go ahead and go back in the pool. Once everyone says yes, each person sees the Telegram handle (if shared) of the people they give to and receive from. After each favor, <strong>the person who received it confirms it</strong>. When every favor is confirmed, the loop is complete and a ring closes on the board.</p>
+
+  <h2>Privacy</h2>
+  <div class="box"><ul>{{PRIVACY_LIST}}<li>{{CHAT_ID_NOTE}}</li></ul></div>
+  <p>Members are keyed by a salted one-way hash, never by name. Favor Loop never stores your Agent Village identity, and keeps your Telegram chat id only in encrypted form, so the bot can message you. Favor Loop shares nothing with any third party.</p>
+
+  <h2>Safety</h2>
+  <ul>{{SAFETY_LIST}}</ul>
+  <p><strong>Report a problem:</strong> send <code>/report</code> and what happened to the Favor Loop bot, and an organiser will look at it. Or find an organiser in the village.</p>
+
+  <h2>Your agent</h2>
+  <p>Favor Loop is built as an Agent Village mini-app, so a resident's agent will be able to join, answer and confirm for them once the Agent Village team has reviewed and installed it. Until then, residents use the Telegram bot, which can still ask your agent which favors suit you: the agent suggests, you decide.</p>
+</div>
+</body>
+</html>
