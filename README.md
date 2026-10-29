@@ -155,4 +155,4 @@ Then, labelled "test accounts" on screen:
 - Favors are free, about 15 minutes, in a public place or online. Anyone can say no or leave at any time. `/report` reaches an organiser.
 - Simulated members and test accounts live in their own databases, are always labelled, and are never counted as real.
 
-What to claim: built as an Agent Village mini-app (pull request #…); residents used it this week through the Favor Loop Telegram bot. Never say it is installed in the village until the Agent Village team says so.
+What to claim: built as an Agent Village mini-app (pull request [#556](https://github.com/Edge-City/agentvillage/pull/556)); residents used it this week through the Favor Loop Telegram bot. Never say it is installed in the village until the Agent Village team says so.
