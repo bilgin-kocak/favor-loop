@@ -102,7 +102,7 @@ Render or a small VPS work too: build the `Dockerfile`, mount a persistent disk 
    bun run agentvillage -- --host https://favorloop.fly.dev
    ```
 
-2. Fork `Edge-City/agentvillage`, clone it with full history next to this repo, and make a branch. Then copy the files in and run the buildathon's local checks:
+2. Fork `Edge-City/agentvillage`, clone it with full history next to this repo, and make a branch. Then copy the files in and run the buildathon's local checks (they need Bun 1.4 or later; `bun upgrade`):
 
    ```bash
    scripts/pr-checks.sh ../agentvillage https://favorloop.fly.dev/mcp
@@ -110,7 +110,7 @@ Render or a small VPS work too: build the `Dockerfile`, mount a persistent disk 
 
    Expect: the skill pin matches, the validator says `{"ok":true}`, conformance prints `passed: true`, and the manifest test is red only on `favorloop/: not in catalog.json`. The live `--service` check reports `service.reachability` FAIL by design: public reads answer without a token, as Kismet's do. That row is advisory.
 
-3. Commit only `mini-apps/favorloop/`, `skills/favorloop/` and `scripts/tests/fixtures/favorloop/`, then run the review bot. Expect `NEEDS_HUMAN` (`new_app`, `catalog_unlisted`, `core_path` for the fixtures), never `FAIL`:
+3. Commit only `mini-apps/favorloop/`, `skills/favorloop/` and `scripts/tests/fixtures/favorloop/`, then run the review bot. Expect `NEEDS_HUMAN` in lane `core` with only `core_path` findings (the fixtures), never `FAIL`:
 
    ```bash
    bun scripts/mini-apps-review.ts --base origin/main --head HEAD --author bilgin-kocak

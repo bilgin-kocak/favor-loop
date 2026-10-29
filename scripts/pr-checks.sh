@@ -40,5 +40,5 @@ bun test scripts/tests/mini-app-manifests.test.ts 2>&1 | grep -E "not in catalog
 echo
 echo "== 4. after you commit on your branch, run the review bot (needs full history: git fetch --unshallow):"
 echo "   bun scripts/mini-apps-review.ts --base origin/main --head HEAD --author bilgin-kocak"
-echo "   Expect NEEDS_HUMAN, never FAIL (new_app, catalog_unlisted, and core_path for the fixture files)."
+echo "   Expect NEEDS_HUMAN, never FAIL (core_path for the fixture files)."
 echo "Never commit conformance.json."

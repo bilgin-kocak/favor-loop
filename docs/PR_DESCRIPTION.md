@@ -31,8 +31,8 @@ Members are keyed by an HMAC of `X-Village-Subject`; the subject is never stored
 
 - `shasum -a 256 skills/favorloop/SKILL.md` equals `skills[0].sha256`
 - validator: `{"ok":true}`
-- `bun run conformance ... --fixtures scripts/tests/fixtures/favorloop --base origin/main`: **`passed: true`** (51 fixture files, 32 error bodies)
-- review bot: `NEEDS_HUMAN`, no `FAIL`: `new_app`, `catalog_unlisted` (and `core_path` for the fixture files, which live outside `mini-apps/` as the guide asks)
+- `bun run conformance ... --fixtures scripts/tests/fixtures/favorloop --base origin/main`: **`passed: true`** (51 fixture files including 6 requests, 32 error bodies)
+- review bot: `NEEDS_HUMAN`, lane `core`, no `FAIL`: only `core_path` (S), for the fixture files, which live under `scripts/tests/fixtures/favorloop/` as the guide asks (with core paths in the diff the bot does not take the single-app path, so its per-app rows read NOT RUN)
 - `bun test scripts/tests/mini-app-manifests.test.ts`: red only on `favorloop/: not in catalog.json`, as expected for a new app
 - `--service https://favorloop.fly.dev/mcp` (advisory): `service.reachability` reports FAIL by design, because public reads answer without a token (as Kismet's do), so a token-less `initialize` answers 200, not 401
 
