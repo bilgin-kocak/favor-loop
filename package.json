@@ -1,0 +1,26 @@
+{
+  "name": "favor-loop",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Favor Loop: loops of 15-minute favors between Edge City India residents (Agent Village mini-app, Telegram bot and live board).",
+  "scripts": {
+    "start": "bun src/main.ts",
+    "dev": "bun --watch src/main.ts",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit",
+    "agentvillage": "bun scripts/agentvillage.ts",
+    "shim": "bun scripts/village-shim.ts",
+    "demo": "bun scripts/demo-accounts.ts"
+  },
+  "dependencies": {
+    "grammy": "1.46.0"
+  },
+  "devDependencies": {
+    "@types/bun": "1.4.4",
+    "typescript": "5.9.3"
+  },
+  "engines": {
+    "bun": ">=1.1.0"
+  }
+}
