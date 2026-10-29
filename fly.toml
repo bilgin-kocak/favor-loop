@@ -1,0 +1,33 @@
+# Fly.io: one machine with a volume (SQLite lives on it). Telegram long polling needs exactly one
+# running instance, so the machine never auto-stops. Change `app` if the name is taken, and set
+# PUBLIC_BASE_URL to match.
+app = "favorloop"
+primary_region = "bom"
+
+[env]
+  PORT = "8080"
+  DB_PATH = "/data/favorloop.db"
+  PUBLIC_BASE_URL = "https://favorloop.fly.dev"
+  DELETE_ALL_AT = "2026-11-30T00:00:00+05:30"
+
+[[mounts]]
+  source = "favorloop_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    grace_period = "15s"
+    interval = "30s"
+    method = "GET"
+    path = "/healthz"
+    timeout = "5s"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
