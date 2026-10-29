@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit",
     "agentvillage": "bun scripts/agentvillage.ts",
     "shim": "bun scripts/village-shim.ts",
-    "demo": "bun scripts/demo-accounts.ts"
+    "demo": "bun scripts/demo-accounts.ts",
+    "live-check": "bun scripts/live-check.ts"
   },
   "dependencies": {
     "grammy": "1.46.0"
