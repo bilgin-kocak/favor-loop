@@ -27,6 +27,7 @@ src/web.ts         routes; public/*.html are the pages
 agentvillage/      the files for the Edge-City/agentvillage pull request (generated, except SKILL.md)
 scripts/           agentvillage.ts (generate), pr-checks.sh (local checks), village-shim.ts and demo-accounts.ts (demo)
 demo/              a Claude Code project for the agent demo
+video/             the 81-second video: Remotion scenes, ElevenLabs voice and sound effects (video/README.md)
 ```
 
 ## Run locally

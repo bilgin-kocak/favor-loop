@@ -1,0 +1,6 @@
+node_modules/
+out/
+public/audio/music.wav
+public/audio/vo/
+public/audio/sfx/
+tools/__pycache__/

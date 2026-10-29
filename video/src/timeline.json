@@ -1,0 +1,336 @@
+{
+ "fps": 30,
+ "duration": 81.0,
+ "bpm": 104,
+ "beat": 0.5769230769230769,
+ "drop": 17.3,
+ "beats": {
+  "yes1": 43.2615,
+  "yes2": 44.4154,
+  "yes3": 45.5692,
+  "accepted": 46.7231,
+  "proofRing": 55.9538,
+  "peakStart": 56.5308,
+  "peakEnd": 65.7615,
+  "buildStart": 72.6846,
+  "rollStart": 74.9923,
+  "finalHit": 77.3
+ },
+ "scenes": {
+  "hook": [
+   0,
+   4.0
+  ],
+  "characters": [
+   4.0,
+   13.5
+  ],
+  "reveal": [
+   13.5,
+   17.3
+  ],
+  "title": [
+   17.3,
+   20.9
+  ],
+  "kidney": [
+   20.9,
+   30.6
+  ],
+  "agent": [
+   30.6,
+   41.7
+  ],
+  "yeses": [
+   41.7,
+   48.8
+  ],
+  "proof": [
+   48.8,
+   56.9
+  ],
+  "scale": [
+   56.9,
+   65.2
+  ],
+  "kismet": [
+   65.2,
+   72.9
+  ],
+  "close": [
+   72.9,
+   81.0
+  ]
+ },
+ "vo": {
+  "vo01": {
+   "start": 0.4,
+   "file": "audio/voice/vo01.mp3",
+   "duration": 3.6,
+   "phrases": [
+    {
+     "text": "Three people.",
+     "start": 0.62,
+     "end": 1.56
+    },
+    {
+     "text": "Zero possible trades.",
+     "start": 1.95,
+     "end": 3.69
+    }
+   ]
+  },
+  "vo02": {
+   "start": 4.1,
+   "file": "audio/voice/vo02.mp3",
+   "duration": 9.36,
+   "phrases": [
+    {
+     "text": "Priya reviews code,",
+     "start": 4.16,
+     "end": 5.45
+    },
+    {
+     "text": "but wants a portrait.",
+     "start": 5.66,
+     "end": 6.64
+    },
+    {
+     "text": "Arjun",
+     "start": 7.24,
+     "end": 7.87
+    },
+    {
+     "text": "takes portraits, but wants yoga.",
+     "start": 8.03,
+     "end": 9.73
+    },
+    {
+     "text": "Maya teaches yoga,",
+     "start": 10.21,
+     "end": 11.6
+    },
+    {
+     "text": "but needs her code reviewed.",
+     "start": 11.79,
+     "end": 13.22
+    }
+   ]
+  },
+  "vo03": {
+   "start": 13.55,
+   "file": "audio/voice/vo03.mp3",
+   "duration": 1.92,
+   "phrases": [
+    {
+     "text": "No two of them can trade.",
+     "start": 13.58,
+     "end": 15.3
+    }
+   ]
+  },
+  "vo04": {
+   "start": 15.55,
+   "file": "audio/voice/vo04.mp3",
+   "duration": 2.0,
+   "phrases": [
+    {
+     "text": "All three of them can.",
+     "start": 15.64,
+     "end": 17.23
+    }
+   ]
+  },
+  "vo05": {
+   "start": 21.0,
+   "file": "audio/voice/vo05.mp3",
+   "duration": 9.44,
+   "phrases": [
+    {
+     "text": "It's the trick kidney exchanges use to save lives:",
+     "start": 21.07,
+     "end": 24.12
+    },
+    {
+     "text": "loops, and chains started by someone who simply wants to give.",
+     "start": 24.55,
+     "end": 28.33
+    },
+    {
+     "text": "We built it for favors.",
+     "start": 28.87,
+     "end": 30.26
+    }
+   ]
+  },
+  "vo06": {
+   "start": 30.9,
+   "file": "audio/voice/vo06.mp3",
+   "duration": 3.36,
+   "phrases": [
+    {
+     "text": "Just tell your agent what you can give,",
+     "start": 30.93,
+     "end": 32.84
+    },
+    {
+     "text": "and what you'd love.",
+     "start": 33.08,
+     "end": 34.05
+    }
+   ]
+  },
+  "vo07": {
+   "start": 34.4,
+   "file": "audio/voice/vo07.mp3",
+   "duration": 6.64,
+   "phrases": [
+    {
+     "text": "It shows you exactly what it will send,",
+     "start": 34.45,
+     "end": 36.6
+    },
+    {
+     "text": "waits for your yes,",
+     "start": 36.91,
+     "end": 37.96
+    },
+    {
+     "text": "and the moment a loop exists,",
+     "start": 38.2,
+     "end": 39.92
+    },
+    {
+     "text": "it finds it.",
+     "start": 40.12,
+     "end": 40.79
+    }
+   ]
+  },
+  "vo08": {
+   "start": 42.0,
+   "file": "audio/voice/vo08.mp3",
+   "duration": 6.4,
+   "phrases": [
+    {
+     "text": "Everyone says yes,",
+     "start": 42.02,
+     "end": 43.4
+    },
+    {
+     "text": "or it never happens.",
+     "start": 43.78,
+     "end": 45.39
+    },
+    {
+     "text": "And nobody ever learns who said no.",
+     "start": 45.91,
+     "end": 48.17
+    }
+   ]
+  },
+  "vo09": {
+   "start": 49.0,
+   "file": "audio/voice/vo09.mp3",
+   "duration": 8.08,
+   "phrases": [
+    {
+     "text": "Fifteen minutes.",
+     "start": 49.08,
+     "end": 49.96
+    },
+    {
+     "text": "Free.",
+     "start": 50.45,
+     "end": 50.8
+    },
+    {
+     "text": "Somewhere public.",
+     "start": 51.23,
+     "end": 52.01
+    },
+    {
+     "text": "Then the person who received the favor confirms it,",
+     "start": 52.57,
+     "end": 55.47
+    },
+    {
+     "text": "and the loop lights up.",
+     "start": 55.69,
+     "end": 56.81
+    }
+   ]
+  },
+  "vo10": {
+   "start": 57.5,
+   "file": "audio/voice/vo10.mp3",
+   "duration": 7.04,
+   "phrases": [
+    {
+     "text": "Swaps.",
+     "start": 57.52,
+     "end": 58.14
+    },
+    {
+     "text": "Three-way loops.",
+     "start": 58.64,
+     "end": 59.5
+    },
+    {
+     "text": "Gift chains.",
+     "start": 59.86,
+     "end": 60.74
+    },
+    {
+     "text": "This is a simulated village of a hundred and fifty.",
+     "start": 61.28,
+     "end": 64.3
+    }
+   ]
+  },
+  "vo11": {
+   "start": 65.4,
+   "file": "audio/voice/vo11.mp3",
+   "duration": 6.4,
+   "phrases": [
+    {
+     "text": "Kismet finds who you should meet.",
+     "start": 65.45,
+     "end": 67.31
+    },
+    {
+     "text": "Favor Loop finds who can help",
+     "start": 67.93,
+     "end": 69.58
+    },
+    {
+     "text": "whom,",
+     "start": 69.76,
+     "end": 70.11
+    },
+    {
+     "text": "and proves it happened.",
+     "start": 70.31,
+     "end": 71.56
+    }
+   ]
+  },
+  "vo12": {
+   "start": 73.55,
+   "file": "audio/voice/vo12.mp3",
+   "duration": 3.44,
+   "phrases": [
+    {
+     "text": "No two of us could trade...",
+     "start": 73.58,
+     "end": 75.24
+    },
+    {
+     "text": "The three of us could.",
+     "start": 75.76,
+     "end": 76.8
+    }
+   ]
+  }
+ }
+}

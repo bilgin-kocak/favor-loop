@@ -1,0 +1,22 @@
+{
+  "name": "favor-loop-video",
+  "private": true,
+  "description": "The Favor Loop video: Remotion scenes, ElevenLabs voice and sound effects, a soundtrack synthesized from the same timeline.",
+  "scripts": {
+    "music": "python3 tools/music.py",
+    "voice": "python3 tools/level_voice.py",
+    "studio": "remotion studio",
+    "render": "remotion render FavorLoop out/favor-loop-raw.mp4 && sh tools/master.sh",
+    "still": "remotion still FavorLoop"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.539",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "remotion": "4.0.539"
+  },
+  "devDependencies": {
+    "@types/react": "18.3.12",
+    "typescript": "5.9.3"
+  }
+}
