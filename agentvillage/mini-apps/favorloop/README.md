@@ -34,7 +34,7 @@ is faster.
   (`additionalProperties: false` at every level) before any tool runs.
 - Every answer is at most 32,768 bytes. A larger one would be refused as a
   tool error (`unavailable`, ask for a smaller `limit`), never cut. The largest
-  real answer is `my_loops` with ten loops, about 12 KB.
+  real answer is `my_loops` with ten loops, about 16 KB.
 - Server time is a few milliseconds per call (one SQLite file, one process).
 - A success is one text item, the data as JSON followed by a last line
   `Source: https://favorloop.fly.dev/board`, plus `structuredContent` whose first key,
@@ -93,8 +93,8 @@ In detail:
   proposal expired without their answer; joining again resumes) and up to 10
   loops, newest first: open and completed ones, plus ones that dissolved or
   expired in the last 24 hours. Each loop has `loopId`, `shape`, `status`,
-  `window` (a suggested time from overlapping availability, or "by Friday
-  13:00"), `place`, `answerBy` (while proposed), `youGive` and `youReceive`
+  `window` (the first availability slot every member who gave one shares, or
+  "by Friday 13:00", later "before the village ends on 1 Nov"), `place`, `answerBy` (while proposed), `youGive` and `youReceive`
   (favor id, label and the other person), `steps` (the whole loop, other
   people as "a resident" and "another resident"), `yourAnswer`, `waitingFor`
   (how many have not answered, never who), `contacts`, `youReceived`,
