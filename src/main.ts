@@ -56,11 +56,20 @@ const sim = new SimVillage();
 setInterval(() => sim.step(), 3_000);
 
 let botUrl: string | null = null;
+let stopBot = async () => {};
 if (config.telegramToken) {
-  const { startBot } = await import("./bot");
-  const bot = await startBot({ token: config.telegramToken, ctx, identity, sealer: makeSealer(salt), sim, log });
-  listeners.push(bot.onLoopEvent);
-  botUrl = bot.url;
+  try {
+    const { startBot } = await import("./bot");
+    const bot = await startBot({
+      token: config.telegramToken, ctx, identity, sealer: makeSealer(salt), sim,
+      publicBaseUrl: config.publicBaseUrl, adminIds: config.adminTgIds, log,
+    });
+    listeners.push(bot.onLoopEvent);
+    botUrl = bot.url;
+    stopBot = () => bot.stop();
+  } catch (e) {
+    log({ event: "bot", error: e instanceof Error ? e.name : "unknown", detail: "the bot did not start; the web side runs on" });
+  }
 }
 
 const server = Bun.serve({
@@ -98,8 +107,9 @@ every(60_000, "expired", () => core.expireDue(ctx));
 every(10 * 60_000, "matcher", () => core.runMatcher(ctx).length);
 setInterval(purgeIfDue, 60 * 60_000);
 
-function shutdown() {
+async function shutdown() {
   log({ event: "shutdown" });
+  await stopBot().catch(() => {});
   server.stop();
   db.close();
   process.exit(0);
