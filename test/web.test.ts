@@ -4,11 +4,13 @@ import { makeIdentity } from "../src/identity";
 import { makeFetch } from "../src/web";
 import { testCtx } from "./helpers";
 
+const logged: Record<string, unknown>[] = [];
+
 function app() {
   const t = testCtx();
   const identity = makeIdentity("web-test");
   const fetch = makeFetch({
-    mcp: { ctx: t.ctx, identity, appKey: "k", publicBaseUrl: "https://favorloop.example.org" },
+    mcp: { ctx: t.ctx, identity, appKey: "k", publicBaseUrl: "https://favorloop.example.org", log: line => logged.push(line) },
     publicDir: new URL("../public", import.meta.url).pathname,
     realGraph: () => core.boardGraph(t.ctx, identity.anon),
     simGraph: () => ({ simulated: true, counts: core.counts(t.ctx), pool: 0, loops: [] }),
@@ -38,7 +40,9 @@ describe("web", () => {
     const real = (await (await get("/api/board")).json()) as { simulated: boolean };
     expect(real.simulated).toBe(false);
     expect(((await (await get("/api/board?view=sim")).json()) as { simulated: boolean }).simulated).toBe(true);
-    for (const path of ["/mcp/", "/board/", "/nope"]) expect((await get(path)).status).toBe(404);
+    logged.length = 0;
+    for (const path of ["/mcp/", "/board/", "/nope", "/.well-known/oauth-protected-resource"]) expect((await get(path)).status).toBe(404);
+    expect(logged.map(l => l.result)).toEqual(["wrong_path", "well_known"]);
     expect((await get("/healthz")).status).toBe(200);
     expect((await get("/api/sim/restart")).status).toBe(405);
     expect((await get("/api/sim/restart", { method: "POST" })).status).toBe(200);

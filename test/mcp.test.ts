@@ -200,6 +200,21 @@ describe("tools", () => {
     expect((await call(deps, "menu", {}, { authorization: "Bearer wrong" })).structuredContent.code).toBe("rate_limited");
   });
 
+  test("every request leaves one log line of method, result and timing, the ones answered early too", async () => {
+    const lines: Record<string, unknown>[] = [];
+    const { deps } = setup({ log: line => lines.push(line) });
+    await post(deps, "{not json");
+    await post(deps, [{ jsonrpc: "2.0", id: 1, method: "ping" }]);
+    await post(deps, { jsonrpc: "2.0", method: "notifications/initialized" });
+    await post(deps, { jsonrpc: "2.0", id: { bad: true }, method: "ping" });
+    await handleMcp(new Request(`${BASE}/mcp`), "203.0.113.7", deps);
+    await rpc(deps, "ping");
+    expect(lines.map(l => `${l.method} ${l.result}`)).toEqual([
+      "- parse_error", "- batch", "notifications/initialized notification", "ping invalid_request", "- method_not_allowed", "ping ok",
+    ]);
+    for (const line of lines) expect(Object.keys(line).sort()).toEqual(["method", "ms", "result"]);
+  });
+
   test("no answer passes the 32 KiB cap", async () => {
     const { deps } = setup();
     for (let i = 0; i < 40; i++) {

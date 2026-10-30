@@ -86,6 +86,11 @@ export function makeFetch(deps: WebDeps) {
       case "/healthz":
         return text("ok", 200);
       default:
+        // A near miss on the endpoint (/mcp/, /mcp/sse) or a client's discovery lookup leaves an MCP-style line (never
+        // the path), so a misconfigured caller shows in the logs.
+        if (url.pathname.startsWith("/mcp") || url.pathname.startsWith("/.well-known/")) {
+          deps.mcp.log?.({ method: "-", result: url.pathname.startsWith("/mcp") ? "wrong_path" : "well_known", ms: 0 });
+        }
         return text("Not found", 404);
     }
   };

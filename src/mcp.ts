@@ -119,29 +119,34 @@ export function toolsList() {
 }
 
 export async function handleMcp(req: Request, clientIp: string, deps: McpDeps): Promise<Response> {
-  if (req.method !== "POST") return rpcError(405, null, -32000, "Use POST with one JSON-RPC message.");
-  if (Number(req.headers.get("content-length") ?? 0) > MAX_REQUEST_BYTES) return rpcError(413, null, -32600, "Request too large.");
+  const started = performance.now();
+  // Requests answered before a method runs get their line too (method and result only), so a caller's failure shows.
+  const early = (result: string, response: Response, method: unknown = "-") => {
+    deps.log?.({ method: typeof method === "string" ? method.slice(0, 64) : "-", result, ms: Math.round(performance.now() - started) });
+    return response;
+  };
+  if (req.method !== "POST") return early("method_not_allowed", rpcError(405, null, -32000, "Use POST with one JSON-RPC message."));
+  if (Number(req.headers.get("content-length") ?? 0) > MAX_REQUEST_BYTES) return early("too_large", rpcError(413, null, -32600, "Request too large."));
   const raw = new Uint8Array(await req.arrayBuffer());
-  if (raw.byteLength > MAX_REQUEST_BYTES) return rpcError(413, null, -32600, "Request too large.");
+  if (raw.byteLength > MAX_REQUEST_BYTES) return early("too_large", rpcError(413, null, -32600, "Request too large."));
 
   let msg: unknown;
   try {
     msg = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(raw));
   } catch {
-    return rpcError(400, null, -32700, "Parse error.");
+    return early("parse_error", rpcError(400, null, -32700, "Parse error."));
   }
-  if (Array.isArray(msg)) return rpcError(400, null, -32600, "Batches are not supported.");
-  if (!isPlainObject(msg) || msg.jsonrpc !== "2.0") return rpcError(400, null, -32600, "Invalid request.");
+  if (Array.isArray(msg)) return early("batch", rpcError(400, null, -32600, "Batches are not supported."));
+  if (!isPlainObject(msg) || msg.jsonrpc !== "2.0") return early("invalid_request", rpcError(400, null, -32600, "Invalid request."));
   const has = (key: string) => Object.prototype.hasOwnProperty.call(msg, key);
   // A notification (no id) or a response to us (no method): accepted, nothing to answer.
   if (!has("method") || !has("id")) {
-    if (has("method") && typeof msg.method !== "string") return rpcError(400, null, -32600, "Invalid request.");
-    return respond(202, null);
+    if (has("method") && typeof msg.method !== "string") return early("invalid_request", rpcError(400, null, -32600, "Invalid request."));
+    return early(has("method") ? "notification" : "response", respond(202, null), msg.method);
   }
   const { id, method } = msg;
-  if (!validId(id) || typeof method !== "string") return rpcError(400, validId(id) ? id : null, -32600, "Invalid request.");
+  if (!validId(id) || typeof method !== "string") return early("invalid_request", rpcError(400, validId(id) ? id : null, -32600, "Invalid request."), method);
 
-  const started = performance.now();
   let result: unknown;
   let tool: string | undefined;
   let code = "ok";
