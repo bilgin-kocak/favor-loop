@@ -181,7 +181,7 @@
     const loops = [...data.loops].sort((a, b) => a.createdAt - b.createdAt);
     const rows = Math.ceil(loops.length / cols);
     const dot = 13, perRow = Math.max(1, Math.floor((width - 40) / dot));
-    const poolRows = Math.ceil(data.pool.length / perRow);
+    const poolRows = Math.ceil(data.pool / perRow);
     const height = Math.max(220, rows * cell + 70 + poolRows * dot + 20);
     svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
     svg.setAttribute("height", height);
@@ -198,10 +198,10 @@
     });
     const top = Math.max(rows * cell, loops.length ? 0 : 100) + 30;
     const caption = el("text", { x: 20, y: top, fill: "var(--muted)", "font-size": "14" }, svg);
-    caption.textContent = `In the pool, waiting for a match: ${data.pool.length}`;
-    data.pool.forEach((_, i) => {
+    caption.textContent = `In the pool, waiting for a match: ${data.pool}`;
+    for (let i = 0; i < data.pool; i++) {
       el("circle", { cx: 26 + (i % perRow) * dot, cy: top + 22 + Math.floor(i / perRow) * dot, r: 4, fill: "var(--dot)", opacity: 0.55 }, svg);
-    });
+    }
     first = false;
   }
 

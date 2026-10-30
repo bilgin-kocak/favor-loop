@@ -40,6 +40,8 @@ bun install
 cp .env.example .env
 ```
 
+Then set `HASH_SALT` in `.env` to the output of `openssl rand -hex 32`: the server refuses to start without it.
+
 ```bash
 bun run dev
 ```
@@ -63,7 +65,7 @@ Open http://localhost:8080/board?view=sim to see the simulated village. Leave `T
 | `MINI_APP_FAVORLOOP_KEY` | The app token Agent Village sends as `Bearer`; give it to the organisers privately |
 | `ADMIN_TG_IDS` | Comma-separated Telegram ids for `/stats` and `/report` |
 | `DB_PATH` | SQLite file (`/data/favorloop.db` on Fly) |
-| `HASH_SALT` | Secret salt for member keys. **Set once, never change**: changing it orphans every member |
+| `HASH_SALT` | Secret salt for member keys and board ids, at least 32 characters. **Required**: the server refuses to start without it. **Set once, never change**: changing it orphans every member |
 | `DELETE_ALL_AT` | `2026-11-30T00:00:00+05:30`: everything is deleted then, and joins stop |
 | `FAVORLOOP_DEMO_KEY` | Optional. Private calls with this key reach an isolated in-memory village of test accounts, so a demo never touches real data |
 

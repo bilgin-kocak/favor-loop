@@ -11,7 +11,7 @@ function app() {
     mcp: { ctx: t.ctx, identity, appKey: "k", publicBaseUrl: "https://favorloop.example.org" },
     publicDir: new URL("../public", import.meta.url).pathname,
     realGraph: () => core.boardGraph(t.ctx, identity.anon),
-    simGraph: () => ({ simulated: true, counts: core.counts(t.ctx), pool: [], loops: [] }),
+    simGraph: () => ({ simulated: true, counts: core.counts(t.ctx), pool: 0, loops: [] }),
     demoGraph: null,
     restartSim: () => true,
     botUrl: () => "https://t.me/favorloop_test_bot",

@@ -94,8 +94,16 @@ function callTool(params: unknown, headers: Headers, clientIp: string, deps: Mcp
     if (!subject) return fail("not_authorized", "This call needs Agent Village's private reference for the resident.");
     member = deps.identity.forSubject(subject);
   }
-  const limiter = op.public ? deps.ipLimiter : deps.memberLimiter;
-  if (limiter && !limiter.allow(op.public ? clientIp : member)) return fail("rate_limited", "Too many calls in a short time; try again in a minute.");
+  // Every resident's calls come from Agent Village's one app server, so a public read carrying its key is limited
+  // per resident when it names one (and not at all when it does not), never per address.
+  let limiter = op.public ? deps.ipLimiter : deps.memberLimiter;
+  let limitKey = op.public ? clientIp : member;
+  if (op.public && bearerMatches(headers.get("authorization"), deps.appKey)) {
+    const subject = usableSubject(headers.get("x-village-subject"));
+    limiter = subject ? deps.memberLimiter : undefined;
+    limitKey = subject ? deps.identity.forSubject(subject) : "";
+  }
+  if (limiter && !limiter.allow(limitKey)) return fail("rate_limited", "Too many calls in a short time; try again in a minute.");
 
   try {
     return { result: toolSuccess(TOOLS[op.tool](village, args as Args, member, deps.publicBaseUrl), deps.publicBaseUrl), tool: op.tool, code: "ok" };

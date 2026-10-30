@@ -127,7 +127,7 @@ describe("loop lifecycle", () => {
     expect(core.board(ctx).counts).toEqual({ members: 3, loopsProposed: 1, loopsAccepted: 1, loopsCompleted: 1, favorsConfirmed: 3 });
   });
 
-  test("proposals expire after 6 hours; whoever did not answer is paused", () => {
+  test("proposals expire after 6 hours; a Telegram member who did not answer is paused", () => {
     const { ctx, events, advance, loopId } = village();
     core.answer(ctx, A, loopId, "yes");
     advance(PROPOSAL_TTL_MS + 1);
@@ -136,7 +136,22 @@ describe("loop lifecycle", () => {
     expect(events.find(e => e.type === "expired")?.notify).toEqual([A, C, B]);
     expect(core.myLoops(ctx, B).member?.paused).toBe(true);
     expect(core.myLoops(ctx, A).member?.paused).toBe(false);
+    expect(core.myLoops(ctx, C).member?.paused).toBe(false); // Agent Village: never told, so never paused
     expect(codeOf(() => core.answer(ctx, C, loopId, "yes"))).toBe("expired");
+  });
+
+  test("an Agent Village member who never answered stays in the pool, and the same group is not proposed again", () => {
+    const t = testCtx();
+    core.join(t.ctx, A, "tg", { offers: ["code_review"], wants: ["portrait_photo"] });
+    core.join(t.ctx, B, "av", { offers: ["portrait_photo"], wants: ["code_review"] });
+    const loopId = core.myLoops(t.ctx, A).loops[0].loopId;
+    core.answer(t.ctx, A, loopId, "yes");
+    t.advance(PROPOSAL_TTL_MS + 1);
+    expect(core.expireDue(t.ctx)).toBe(1);
+    expect(core.myLoops(t.ctx, B).member?.paused).toBe(false);
+    expect(t.events.filter(e => e.type === "proposed")).toHaveLength(1); // A is not asked about the same loop again
+    core.join(t.ctx, D, "tg", { offers: ["code_review"], wants: ["portrait_photo"] });
+    expect(core.myLoops(t.ctx, B).loops.filter(l => l.status === "proposed")).toHaveLength(1); // a new group, with D
   });
 
   test("answering an overdue proposal expires it and keeps the caller in the pool", () => {
@@ -232,5 +247,39 @@ describe("loop lifecycle", () => {
     const text = JSON.stringify(core.board(ctx, 20)) + JSON.stringify(core.boardGraph(ctx, makeIdentity("test").anon));
     for (const secret of [A, B, C, "@alice_av", "@bob_tg"]) expect(text).not.toContain(secret);
     expect(core.board(ctx).recentLoops).toEqual([{ shape: "loop3", favors: ["code_review", "stretch_session", "portrait_photo"], status: "accepted" }]);
+  });
+
+  test("in an accepted gift chain the giver and the last receiver never see each other's handle", () => {
+    const t = testCtx();
+    core.join(t.ctx, G, "av", { offers: ["goa_tips"], giftOnly: true, contactHandle: "gina_gives" });
+    core.join(t.ctx, B, "av", { offers: ["music_lesson"], wants: ["ai_tool_setup"], contactHandle: "yara_last" });
+    core.join(t.ctx, C, "tg", { offers: ["ai_tool_setup"], wants: ["goa_tips"], contactHandle: "@xavi_middle" });
+    const loopId = core.myLoops(t.ctx, G).loops[0].loopId;
+    for (const id of [G, C, B]) core.answer(t.ctx, id, loopId, "yes");
+    const seen = (id: string) => JSON.stringify(core.myLoops(t.ctx, id).loops[0]);
+    expect(core.myLoops(t.ctx, G).loops[0]).toMatchObject({ shape: "chain", status: "accepted" });
+    expect(seen(G)).toContain("xavi_middle");
+    expect(seen(G)).not.toContain("yara_last");
+    expect(seen(B)).toContain("xavi_middle");
+    expect(seen(B)).not.toContain("gina_gives");
+    expect(seen(C)).toContain("gina_gives");
+    expect(seen(C)).toContain("yara_last");
+  });
+
+  test("the board graph carries no member-stable id, no join order and no fine time", () => {
+    const { ctx, advance } = village();
+    advance(25 * 60_000);
+    core.join(ctx, D, "av", { offers: ["goa_tips"], wants: ["music_lesson"] });
+    const graph = core.boardGraph(ctx, makeIdentity("test").anon);
+    expect(graph.pool).toBe(1); // a count, never an id per member
+    const [loop] = graph.loops;
+    expect(loop.createdAt % (60 * 60_000)).toBe(0);
+    expect(loop).not.toHaveProperty("closedAt");
+    // Seats are in join order; the ring starts at its smallest dot instead, and its edges follow it round.
+    expect(loop.members[0]).toBe([...loop.members].sort()[0]);
+    loop.edges.forEach((e, i) => {
+      expect(e.from).toBe(loop.members[i]);
+      expect(e.to).toBe(loop.members[(i + 1) % loop.members.length]);
+    });
   });
 });

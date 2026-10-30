@@ -1,5 +1,5 @@
 // Entry point: one process serving the MCP endpoint, the web pages, the Telegram bot and the timers.
-import { config, configProblems } from "./config";
+import { config, configProblems, saltProblem } from "./config";
 import * as core from "./core";
 import type { Ctx, LoopEvent } from "./core";
 import { openDb, purgeAll } from "./db";
@@ -11,7 +11,12 @@ import { makeFetch } from "./web";
 const log = (line: Record<string, unknown>) => console.log(JSON.stringify({ at: new Date().toISOString(), ...line }));
 for (const problem of configProblems()) log({ event: "config", warning: problem });
 
-const salt = config.hashSalt || "favorloop-insecure-development-salt";
+const badSalt = saltProblem(config.hashSalt);
+if (badSalt) {
+  log({ event: "config", error: `${badSalt}: refusing to start` });
+  process.exit(1);
+}
+const salt = config.hashSalt;
 const db = openDb(config.dbPath);
 const identity = makeIdentity(salt);
 const listeners: ((event: LoopEvent) => void)[] = [];

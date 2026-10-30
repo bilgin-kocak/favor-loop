@@ -187,6 +187,19 @@ describe("tools", () => {
     expect((await call(deps, "menu", {})).structuredContent.code).toBe("rate_limited");
   });
 
+  test("public reads carrying Agent Village's key are limited per resident, never per address", async () => {
+    const { deps } = setup({ memberLimiter: new RateLimiter(2, 60_000), ipLimiter: new RateLimiter(1, 60_000) });
+    // The whole village arrives from the app server's one address.
+    for (let i = 0; i < 3; i++) expect((await call(deps, "menu", {}, { authorization: `Bearer ${KEY}` })).isError).toBeFalsy();
+    await call(deps, "menu", {}, as("r1"));
+    await call(deps, "board", {}, as("r1"));
+    expect((await call(deps, "menu", {}, as("r1"))).structuredContent.code).toBe("rate_limited");
+    expect((await call(deps, "menu", {}, as("r2"))).isError).toBeFalsy();
+    // Without the key, or with a wrong one, the address limit applies.
+    await call(deps, "menu", {});
+    expect((await call(deps, "menu", {}, { authorization: "Bearer wrong" })).structuredContent.code).toBe("rate_limited");
+  });
+
   test("no answer passes the 32 KiB cap", async () => {
     const { deps } = setup();
     for (let i = 0; i < 40; i++) {

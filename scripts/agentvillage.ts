@@ -155,12 +155,18 @@ save("confirm", "error-not-found", await call("confirm", { loopId: "0f0f0f0f-000
 save("confirm", "error-rate-limited", await call("confirm", { loopId, received: true }, A, denyAll));
 save("confirm", "error-unavailable", await call("confirm", { loopId, received: true }, A, broken()));
 
-// A gift chain: G only gives, so G cannot confirm anything.
-await call("join", { offers: ["goa_tips"], giftOnly: true }, G);
-await call("join", { offers: ["music_lesson"], wants: ["ai_tool_setup"] }, Y);
-await call("join", { offers: ["ai_tool_setup"], wants: ["goa_tips"] }, X);
+// A gift chain G -> X -> Y: G only gives, so G cannot confirm anything. Once everyone said yes, each member's view
+// shows only the handles of the people they give to or receive from: G and Y never see each other's.
+await call("join", { offers: ["goa_tips"], giftOnly: true, contactHandle: "@fixture_giver" }, G);
+await call("join", { offers: ["music_lesson"], wants: ["ai_tool_setup"], contactHandle: "@fixture_last" }, Y);
+await call("join", { offers: ["ai_tool_setup"], wants: ["goa_tips"], contactHandle: "@fixture_middle" }, X);
 const chainId: string = (await call("my_loops", {}, G)).structuredContent.loops[0].loopId;
 for (const who of [G, X, Y]) await call("answer", { loopId: chainId, decision: "yes" }, who);
+for (const [who, name, hidden] of [[G, "giver", "@fixture_last"], [X, "middle", null], [Y, "last", "@fixture_giver"]] as const) {
+  const view = await call("my_loops", {}, who);
+  if (hidden && JSON.stringify(view).includes(hidden)) throw new Error(`gift chain: the ${name} sees ${hidden}`);
+  save("my_loops", `success-gift-chain-${name}`, view);
+}
 save("confirm", "error-not-authorized", await call("confirm", { loopId: chainId, received: true }, G));
 
 // A proposal nobody answers in time.

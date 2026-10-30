@@ -264,14 +264,19 @@ export function expireDue(ctx: Ctx): number {
   return due.length;
 }
 
-/** `caller`, answering just now, is neither paused nor told: their own answer says it. */
+/**
+ * `caller`, answering just now, is neither paused nor told: their own answer says it. Of the others who did not
+ * answer, Telegram members were told and are paused. Agent Village members were never told (Favor Loop cannot
+ * reach their agent; it hears only on asking), so they stay in the pool, and the group is blocked instead so the
+ * same loop is not proposed again at once.
+ */
 function expireLoop(ctx: Ctx, loopId: string, caller?: string) {
   const seats = ctx.db.query<SeatRow, [string]>("SELECT * FROM seats WHERE loop_id = ? ORDER BY position").all(loopId);
+  const silent = seats.filter(s => s.answer === null && s.member_id !== caller).map(s => s.member_id);
   ctx.db.transaction(() => {
     ctx.db.query("UPDATE loops SET status = 'expired', closed_at = ? WHERE id = ? AND status = 'proposed'").run(ctx.now(), loopId);
-    for (const s of seats) {
-      if (s.answer === null && s.member_id !== caller) ctx.db.query("UPDATE members SET paused = 1 WHERE id = ?").run(s.member_id);
-    }
+    for (const id of silent) ctx.db.query("UPDATE members SET paused = 1 WHERE id = ? AND source != 'av'").run(id);
+    if (silent.some(id => getMember(ctx, id)?.source === "av")) blockGroup(ctx, seats.map(s => s.member_id));
   })();
   ctx.emit({ type: "expired", loopId, notify: seats.map(s => s.member_id).filter(id => id !== caller) });
 }
@@ -533,14 +538,20 @@ export function board(ctx: Ctx, limit = 10) {
   };
 }
 
-/** What the web board draws. Dots are anonymous and per loop, so a dot in one ring links to nothing else. */
+const HOUR_MS = 60 * 60 * 1000;
+const rotate = <T>(items: T[], start: number) => [...items.slice(start), ...items.slice(0, start)];
+
+/**
+ * What the web board draws, with nothing that follows a member from view to view: the pool is a count, a dot's
+ * id is new for every loop, a ring starts at its smallest dot rather than its first joiner (seats are in join
+ * order; a chain keeps its giver-first order, which is its meaning), and times are rounded down to the hour.
+ */
 export function boardGraph(ctx: Ctx, anon: (value: string) => string) {
   const loops = ctx.db.query<LoopRow, []>(
     "SELECT * FROM loops WHERE status IN ('proposed', 'accepted', 'completed') ORDER BY created_at DESC LIMIT 60",
-  ).all();
+  ).all().reverse();
   const busy = busyMembers(ctx);
-  const pool = ctx.db.query<{ id: string }, []>("SELECT id FROM members ORDER BY joined_at").all()
-    .filter(m => !busy.has(m.id)).map(m => anon(`pool:${m.id}`));
+  const pool = ctx.db.query<{ id: string }, []>("SELECT id FROM members").all().filter(m => !busy.has(m.id)).length;
   return {
     simulated: ctx.simulated,
     counts: counts(ctx),
@@ -548,14 +559,20 @@ export function boardGraph(ctx: Ctx, anon: (value: string) => string) {
     loops: loops.map(l => {
       const full = loadLoop(ctx, l.id)!;
       const dot = (member: string) => anon(`${l.id}:${member}`);
+      let members = full.seats.map(s => dot(s.member_id));
+      let edges = full.edges.map(e => ({ from: dot(e.giver), to: dot(e.receiver), favor: e.favor, confirmed: e.confirmed === 1 }));
+      if (l.shape !== "chain") {
+        const start = members.indexOf([...members].sort()[0]);
+        members = rotate(members, start);
+        edges = rotate(edges, start);
+      }
       return {
         id: anon(`loop:${l.id}`),
         shape: l.shape,
         status: effectiveStatus(ctx, l),
-        members: full.seats.map(s => dot(s.member_id)),
-        edges: full.edges.map(e => ({ from: dot(e.giver), to: dot(e.receiver), favor: e.favor, confirmed: e.confirmed === 1 })),
-        createdAt: l.created_at,
-        closedAt: l.closed_at,
+        members,
+        edges,
+        createdAt: Math.floor(l.created_at / HOUR_MS) * HOUR_MS,
       };
     }),
   };
